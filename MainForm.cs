@@ -298,8 +298,7 @@ namespace RNNoise_Denoiser
             if (chkHighpass.Checked) filters.Add($"highpass=f={(int)numHighpass.Value}");
             if (chkLowpass.Checked) filters.Add($"lowpass=f={(int)numLowpass.Value}");
             filters.Add("aresample=48000");
-            //filters.Add($"arnndn=m='{EscapeForFilter(model)}':mix={((double)numMix.Value).ToString(CultureInfo.InvariantCulture)}");
-            filters.Add($"arnndn=m={ModelPathForFfmpeg(model)}:mix={((double)numMix.Value).ToString(CultureInfo.InvariantCulture)}");
+            filters.Add($"arnndn=m='{ModelPathForFfmpeg(model)}':mix={((double)numMix.Value).ToString(CultureInfo.InvariantCulture)}");
             if (chkSpeechNorm.Checked) filters.Add("speechnorm=e=6");
             string filterChain = string.Join(',', filters);
 
@@ -369,8 +368,8 @@ namespace RNNoise_Denoiser
             }
             static string ModelPathForFfmpeg(string path)
             {
-                // Прямые слеши спокойно понимаются FFmpeg на Windows
-                return path.Replace("\\", "/");
+                // Заменяем обратные слеши на прямые и экранируем двоеточие
+                return path.Replace("\\", "/").Replace(":", "\\:");
             }
 
         }
