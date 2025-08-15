@@ -84,7 +84,7 @@ namespace RNNoise_Denoiser
             tableLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             tableLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             tableLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
-            tableLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 540)); // правая панель
+            tableLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 600)); // правая панель
             // Ряды
             tableLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             tableLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
@@ -135,7 +135,7 @@ namespace RNNoise_Denoiser
             rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
             rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
-            rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+            rightGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
             rightGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             rightGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             rightGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
@@ -173,7 +173,7 @@ namespace RNNoise_Denoiser
 
             var lblHp = new Label { Text = "Highpass (Гц):", AutoSize = true, Anchor = AnchorStyles.Left };
             rightGrid.Controls.Add(lblHp, 2, 1);
-            var hpPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
+            var hpPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
             chkHighpass = new CheckBox { Text = "Вкл", Name = "chkHighpass", AutoSize = true };
             numHighpass = new NumericUpDown { Minimum = 20, Maximum = 300, Value = 80, Enabled = false, Name = "numHighpass", Width = 80 };
             hpPanel.Controls.Add(chkHighpass);
@@ -188,7 +188,7 @@ namespace RNNoise_Denoiser
 
             var lblLp = new Label { Text = "Lowpass (Гц):", AutoSize = true, Anchor = AnchorStyles.Left };
             rightGrid.Controls.Add(lblLp, 2, 2);
-            var lpPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
+            var lpPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
             chkLowpass = new CheckBox { Text = "Вкл", Name = "chkLowpass", AutoSize = true };
             numLowpass = new NumericUpDown { Minimum = 4000, Maximum = 20000, Value = 12000, Enabled = false, Name = "numLowpass", Width = 80 };
             lpPanel.Controls.Add(chkLowpass);
