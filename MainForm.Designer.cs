@@ -35,9 +35,11 @@ namespace RNNoise_Denoiser
         private Button btnCancel;
 
         private ListView lvQueue;
+        private ColumnHeader chCheck;
         private ColumnHeader chFile;
         private ColumnHeader chStatus;
         private ColumnHeader chProgress;
+        private ColumnHeader chTime;
         private ColumnHeader chOutput;
 
         private StatusStrip statusStrip;
@@ -224,13 +226,16 @@ namespace RNNoise_Denoiser
                 View = View.Details,
                 FullRowSelect = true,
                 HideSelection = false,
+                CheckBoxes = true,
                 Name = "lvQueue"
             };
-            chFile = new ColumnHeader { Text = "Файл", Width = 520 };
+            chCheck = new ColumnHeader { Text = "", Width = 30 };
+            chFile = new ColumnHeader { Text = "Файл", Width = 480 };
             chStatus = new ColumnHeader { Text = "Статус", Width = 120 };
             chProgress = new ColumnHeader { Text = "Прогресс", Width = 100 };
+            chTime = new ColumnHeader { Text = "Время", Width = 100 };
             chOutput = new ColumnHeader { Text = "Выход", Width = 320 };
-            lvQueue.Columns.AddRange(new ColumnHeader[] { chFile, chStatus, chProgress, chOutput });
+            lvQueue.Columns.AddRange(new ColumnHeader[] { chCheck, chFile, chStatus, chProgress, chTime, chOutput });
             Controls.Add(lvQueue);
             lvQueue.BringToFront();
 

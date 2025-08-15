@@ -111,6 +111,59 @@ namespace RNNoise_Denoiser
                 }
                 catch { }
             };
+
+            var ctx = new ContextMenuStrip();
+            ctx.Items.Add("Удалить из очереди", null, (s, e) =>
+            {
+                foreach (ListViewItem it in lvQueue.SelectedItems.Cast<ListViewItem>().ToArray())
+                    lvQueue.Items.Remove(it);
+            });
+            ctx.Items.Add("Дублировать", null, (s, e) =>
+            {
+                foreach (ListViewItem it in lvQueue.SelectedItems.Cast<ListViewItem>().ToArray())
+                {
+                    var qi = (QueueItem)it.Tag!;
+                    var copy = new ListViewItem(new[] { "", qi.Input, "В очереди", "0%", "", "" })
+                    { Tag = new QueueItem { Input = qi.Input }, Checked = true };
+                    lvQueue.Items.Add(copy);
+                }
+            });
+            ctx.Items.Add("Открыть папку с оригиналом", null, (s, e) =>
+            {
+                if (lvQueue.SelectedItems.Count == 0) return;
+                var qi = (QueueItem)lvQueue.SelectedItems[0].Tag!;
+                try { Process.Start("explorer.exe", $"/select,\"{qi.Input}\""); } catch { }
+            });
+            ctx.Items.Add("Открыть папку вывода", null, (s, e) =>
+            {
+                if (lvQueue.SelectedItems.Count == 0) return;
+                var qi = (QueueItem)lvQueue.SelectedItems[0].Tag!;
+                if (string.IsNullOrWhiteSpace(qi.Output)) return;
+                try
+                {
+                    if (File.Exists(qi.Output))
+                        Process.Start("explorer.exe", $"/select,\"{qi.Output}\"");
+                    else
+                    {
+                        var dir = Path.GetDirectoryName(qi.Output);
+                        if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                            Process.Start("explorer.exe", dir);
+                    }
+                }
+                catch { }
+            });
+            ctx.Items.Add(new ToolStripSeparator());
+            ctx.Items.Add("Отметить для очистки", null, (s, e) =>
+            {
+                foreach (ListViewItem it in lvQueue.SelectedItems.Cast<ListViewItem>())
+                    it.Checked = true;
+            });
+            ctx.Items.Add("Снять из очистки", null, (s, e) =>
+            {
+                foreach (ListViewItem it in lvQueue.SelectedItems.Cast<ListViewItem>())
+                    it.Checked = false;
+            });
+            lvQueue.ContextMenuStrip = ctx;
         }
 
         void LoadSettingsToUi()
@@ -154,8 +207,8 @@ namespace RNNoise_Denoiser
             int added = 0;
             foreach (var f in files.Distinct())
             {
-                var it = new ListViewItem(new[] { f, "В очереди", "0%", "" })
-                { Tag = new QueueItem { Input = f } };
+                var it = new ListViewItem(new[] { "", f, "В очереди", "0%", "", "" })
+                { Tag = new QueueItem { Input = f }, Checked = true };
                 lvQueue.Items.Add(it);
                 added++;
             }
@@ -177,30 +230,38 @@ namespace RNNoise_Denoiser
                 foreach (ListViewItem it in lvQueue.Items)
                 {
                     if (_cts.IsCancellationRequested) break;
+                    if (!it.Checked) continue;
 
                     var qi = (QueueItem)it.Tag!;
-                    it.SubItems[1].Text = "Подготовка";
-                    it.SubItems[2].Text = "0%";
+                    it.SubItems[2].Text = "Подготовка";
+                    it.SubItems[3].Text = "0%";
+                    it.SubItems[4].Text = "";
 
                     var output = BuildOutputPath(qi.Input);
                     qi.Output = output;
-                    it.SubItems[3].Text = output;
+                    it.SubItems[5].Text = output;
 
                     double? duration = await ProbeDurationAsync(qi.Input);
                     bool hasVideo = await ProbeHasVideoAsync(qi.Input);
 
-                    it.SubItems[1].Text = "FFmpeg";
+                    it.SubItems[2].Text = "FFmpeg";
                     var sw = Stopwatch.StartNew();
                     var (ok, err) = await RunFfmpegAsync(qi.Input, output, hasVideo, duration,
-                    p => BeginInvoke(new Action(() => it.SubItems[2].Text = p)),
-                        rem => BeginInvoke(new Action(() => tslStatus.Text = $"Осталось {rem:hh\\:mm\\:ss}")),
+                        p => BeginInvoke(new Action(() => it.SubItems[3].Text = p)),
+                        rem => BeginInvoke(new Action(() =>
+                        {
+                            it.SubItems[4].Text = rem.ToString("hh\\:mm\\:ss");
+                            tslStatus.Text = $"Осталось {rem:hh\\:mm\\:ss}";
+                        })),
                         _cts.Token);
                     sw.Stop();
 
                     BeginInvoke(new Action(() =>
                     {
-                        it.SubItems[1].Text = ok ? "Готово" : ("Ошибка: " + err);
-                        if (ok) it.SubItems[2].Text = "100%";
+                        it.SubItems[2].Text = ok ? "Готово" : ("Ошибка: " + err);
+                        if (ok) it.SubItems[3].Text = "100%";
+                        it.SubItems[4].Text = sw.Elapsed.ToString("hh\\:mm\\:ss");
+                        if (ok) it.Checked = false;
                         tslStatus.Text = ok ? $"Время: {sw.Elapsed:hh\\:mm\\:ss}" : "Готов";
                     }));
                 }
