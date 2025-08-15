@@ -16,6 +16,9 @@ namespace RNNoise_Denoiser
         private Button btnModelBrowse;
         private TextBox txtOutput;
         private Button btnOutputBrowse;
+        private Label lblFfmpeg;
+        private Label lblModel;
+        private Label lblOutput;
 
         // Правый блок опций (вложенная таблица)
         private TableLayoutPanel rightGrid;
@@ -28,6 +31,13 @@ namespace RNNoise_Denoiser
         private CheckBox chkLowpass;
         private NumericUpDown numLowpass;
         private CheckBox chkSpeechNorm;
+        private Label lblCodec;
+        private Label lblBr;
+        private Label lblMix;
+        private Label lblHp;
+        private Label lblSn;
+        private Label lblLp;
+        private Label lblCopy;
 
         private Button btnAddFiles;
         private Button btnAddFolder;
@@ -44,6 +54,8 @@ namespace RNNoise_Denoiser
 
         private StatusStrip statusStrip;
         private ToolStripStatusLabel tslStatus;
+        private ToolStripComboBox cboLang;
+        private ToolStripStatusLabel tslMadeBy;
 
         protected override void Dispose(bool disposing)
         {
@@ -95,33 +107,33 @@ namespace RNNoise_Denoiser
             panelTop.Controls.Add(tableLayout);
 
             // ---- Row 0: FFmpeg ----
-            var lblFfmpeg = new Label { Text = "FFmpeg bin:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft, Anchor = AnchorStyles.Left };
+            lblFfmpeg = new Label { Text = "FFmpeg bin:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft, Anchor = AnchorStyles.Left, Name = "lblFfmpeg" };
             tableLayout.Controls.Add(lblFfmpeg, 0, 0);
 
             txtFfmpeg = new TextBox { Anchor = AnchorStyles.Left | AnchorStyles.Right, Name = "txtFfmpeg" };
             tableLayout.Controls.Add(txtFfmpeg, 1, 0);
 
-            btnFfmpegBrowse = new Button { Text = "Обзор", Name = "btnFfmpegBrowse", Anchor = AnchorStyles.Right };
+            btnFfmpegBrowse = new Button { Text = "Browse", Name = "btnFfmpegBrowse", Anchor = AnchorStyles.Right };
             tableLayout.Controls.Add(btnFfmpegBrowse, 2, 0);
 
             // ---- Row 1: Model ----
-            var lblModel = new Label { Text = "RNNoise .rnnn:", AutoSize = true, Anchor = AnchorStyles.Left };
+            lblModel = new Label { Text = "RNNoise .rnnn:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblModel" };
             tableLayout.Controls.Add(lblModel, 0, 1);
 
             txtModel = new TextBox { Anchor = AnchorStyles.Left | AnchorStyles.Right, Name = "txtModel" };
             tableLayout.Controls.Add(txtModel, 1, 1);
 
-            btnModelBrowse = new Button { Text = "Обзор", Name = "btnModelBrowse", Anchor = AnchorStyles.Right };
+            btnModelBrowse = new Button { Text = "Browse", Name = "btnModelBrowse", Anchor = AnchorStyles.Right };
             tableLayout.Controls.Add(btnModelBrowse, 2, 1);
 
             // ---- Row 2: Output ----
-            var lblOutput = new Label { Text = "Папка вывода:", AutoSize = true, Anchor = AnchorStyles.Left };
+            lblOutput = new Label { Text = "Output folder:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblOutput" };
             tableLayout.Controls.Add(lblOutput, 0, 2);
 
             txtOutput = new TextBox { Anchor = AnchorStyles.Left | AnchorStyles.Right, Name = "txtOutput" };
             tableLayout.Controls.Add(txtOutput, 1, 2);
 
-            btnOutputBrowse = new Button { Text = "Обзор", Name = "btnOutputBrowse", Anchor = AnchorStyles.Right };
+            btnOutputBrowse = new Button { Text = "Browse", Name = "btnOutputBrowse", Anchor = AnchorStyles.Right };
             tableLayout.Controls.Add(btnOutputBrowse, 2, 2);
 
             // ---- Вложенная таблица справа (опции) ----
@@ -144,14 +156,14 @@ namespace RNNoise_Denoiser
             rightGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
             // row0: Кодек/Битрейт
-            var lblCodec = new Label { Text = "Кодек аудио:", AutoSize = true, Anchor = AnchorStyles.Left };
+            lblCodec = new Label { Text = "Audio codec:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblCodec" };
             rightGrid.Controls.Add(lblCodec, 0, 0);
             cboAudioCodec = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Name = "cboAudioCodec", Anchor = AnchorStyles.Left | AnchorStyles.Right };
             cboAudioCodec.Items.AddRange(new object[] { "aac", "libmp3lame", "pcm_s16le" });
             cboAudioCodec.SelectedIndex = 0;
             rightGrid.Controls.Add(cboAudioCodec, 1, 0);
 
-            var lblBr = new Label { Text = "Битрейт:", AutoSize = true, Anchor = AnchorStyles.Left };
+            lblBr = new Label { Text = "Bitrate:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblBr" };
             rightGrid.Controls.Add(lblBr, 2, 0);
             cboBitrate = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Name = "cboBitrate", Anchor = AnchorStyles.Left | AnchorStyles.Right };
             cboBitrate.Items.AddRange(new object[] { "128k", "160k", "192k", "256k", "320k" });
@@ -159,7 +171,7 @@ namespace RNNoise_Denoiser
             rightGrid.Controls.Add(cboBitrate, 3, 0);
 
             // row1: mix / Highpass
-            var lblMix = new Label { Text = "mix (0–1):", AutoSize = true, Anchor = AnchorStyles.Left };
+            lblMix = new Label { Text = "mix (0-1):", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblMix" };
             rightGrid.Controls.Add(lblMix, 0, 1);
             numMix = new NumericUpDown
             {
@@ -173,34 +185,34 @@ namespace RNNoise_Denoiser
             };
             rightGrid.Controls.Add(numMix, 1, 1);
 
-            var lblHp = new Label { Text = "Highpass (Гц):", AutoSize = true, Anchor = AnchorStyles.Left };
+            lblHp = new Label { Text = "Highpass (Hz):", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblHp" };
             rightGrid.Controls.Add(lblHp, 2, 1);
             var hpPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
-            chkHighpass = new CheckBox { Text = "Вкл", Name = "chkHighpass", AutoSize = true };
+            chkHighpass = new CheckBox { Text = "On", Name = "chkHighpass", AutoSize = true };
             numHighpass = new NumericUpDown { Minimum = 20, Maximum = 300, Value = 80, Enabled = false, Name = "numHighpass", Width = 80 };
             hpPanel.Controls.Add(chkHighpass);
             hpPanel.Controls.Add(numHighpass);
             rightGrid.Controls.Add(hpPanel, 3, 1);
 
             // row2: SpeechNorm / Lowpass
-            var lblSn = new Label { Text = "SpeechNorm:", AutoSize = true, Anchor = AnchorStyles.Left };
+            lblSn = new Label { Text = "SpeechNorm:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblSn" };
             rightGrid.Controls.Add(lblSn, 0, 2);
-            chkSpeechNorm = new CheckBox { Text = "Вкл", Name = "chkSpeechNorm", AutoSize = true, Anchor = AnchorStyles.Left };
+            chkSpeechNorm = new CheckBox { Text = "On", Name = "chkSpeechNorm", AutoSize = true, Anchor = AnchorStyles.Left };
             rightGrid.Controls.Add(chkSpeechNorm, 1, 2);
 
-            var lblLp = new Label { Text = "Lowpass (Гц):", AutoSize = true, Anchor = AnchorStyles.Left };
+            lblLp = new Label { Text = "Lowpass (Hz):", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblLp" };
             rightGrid.Controls.Add(lblLp, 2, 2);
             var lpPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
-            chkLowpass = new CheckBox { Text = "Вкл", Name = "chkLowpass", AutoSize = true };
+            chkLowpass = new CheckBox { Text = "On", Name = "chkLowpass", AutoSize = true };
             numLowpass = new NumericUpDown { Minimum = 4000, Maximum = 20000, Value = 12000, Enabled = false, Name = "numLowpass", Width = 80 };
             lpPanel.Controls.Add(chkLowpass);
             lpPanel.Controls.Add(numLowpass);
             rightGrid.Controls.Add(lpPanel, 3, 2);
 
             // row3: Copy Video
-            var lblCopy = new Label { Text = "Копировать видео:", AutoSize = true, Anchor = AnchorStyles.Left };
+            lblCopy = new Label { Text = "Copy video:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblCopy" };
             rightGrid.Controls.Add(lblCopy, 0, 3);
-            chkCopyVideo = new CheckBox { Text = "Вкл", Name = "chkCopyVideo", Checked = true, AutoSize = true, Anchor = AnchorStyles.Left };
+            chkCopyVideo = new CheckBox { Text = "On", Name = "chkCopyVideo", Checked = true, AutoSize = true, Anchor = AnchorStyles.Left };
             rightGrid.Controls.Add(chkCopyVideo, 1, 3);
 
             // Помещаем rightGrid в правую колонку и растягиваем по первым четырем строкам
@@ -209,10 +221,10 @@ namespace RNNoise_Denoiser
 
             // ---- Row 3: кнопки слева ----
             var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 6, 0, 0) };
-            btnAddFiles = new Button { Text = "Добавить файлы", Name = "btnAddFiles" };
-            btnAddFolder = new Button { Text = "Добавить папку", Name = "btnAddFolder" };
-            btnStart = new Button { Text = "Старт", Name = "btnStart" };
-            btnCancel = new Button { Text = "Отмена", Name = "btnCancel", Enabled = false };
+            btnAddFiles = new Button { Text = "Add files", Name = "btnAddFiles" };
+            btnAddFolder = new Button { Text = "Add folder", Name = "btnAddFolder" };
+            btnStart = new Button { Text = "Start", Name = "btnStart" };
+            btnCancel = new Button { Text = "Cancel", Name = "btnCancel", Enabled = false };
             btnPanel.Controls.Add(btnAddFiles);
             btnPanel.Controls.Add(btnAddFolder);
             btnPanel.Controls.Add(btnStart);
@@ -230,19 +242,23 @@ namespace RNNoise_Denoiser
                 Name = "lvQueue"
             };
             chCheck = new ColumnHeader { Text = "", Width = 30 };
-            chFile = new ColumnHeader { Text = "Файл", Width = 480 };
-            chStatus = new ColumnHeader { Text = "Статус", Width = 120 };
-            chProgress = new ColumnHeader { Text = "Прогресс", Width = 100 };
-            chTime = new ColumnHeader { Text = "Время", Width = 100 };
-            chOutput = new ColumnHeader { Text = "Выход", Width = 320 };
+            chFile = new ColumnHeader { Text = "File", Width = 480 };
+            chStatus = new ColumnHeader { Text = "Status", Width = 120 };
+            chProgress = new ColumnHeader { Text = "Progress", Width = 100 };
+            chTime = new ColumnHeader { Text = "Time", Width = 100 };
+            chOutput = new ColumnHeader { Text = "Output", Width = 320 };
             lvQueue.Columns.AddRange(new ColumnHeader[] { chCheck, chFile, chStatus, chProgress, chTime, chOutput });
             Controls.Add(lvQueue);
             lvQueue.BringToFront();
 
             // ---- Status ----
             statusStrip = new StatusStrip { Name = "statusStrip" };
-            tslStatus = new ToolStripStatusLabel("Готов") { Name = "tslStatus" };
+            tslStatus = new ToolStripStatusLabel("Ready") { Name = "tslStatus", Spring = true };
             statusStrip.Items.Add(tslStatus);
+            cboLang = new ToolStripComboBox { Name = "cboLang", Alignment = ToolStripItemAlignment.Right, DropDownStyle = ComboBoxStyle.DropDownList };
+            statusStrip.Items.Add(cboLang);
+            tslMadeBy = new ToolStripStatusLabel("Made by timasich") { Name = "tslMadeBy", Alignment = ToolStripItemAlignment.Right };
+            statusStrip.Items.Add(tslMadeBy);
             Controls.Add(statusStrip);
         }
         #endregion
