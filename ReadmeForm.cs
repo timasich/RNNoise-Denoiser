@@ -15,6 +15,8 @@ namespace RNNoise_Denoiser
             Height = 400;
             StartPosition = FormStartPosition.CenterParent;
 
+            Theme.Apply(this);
+
             var box = new TextBox
             {
                 Multiline = true,
@@ -23,6 +25,7 @@ namespace RNNoise_Denoiser
                 ScrollBars = ScrollBars.Both,
                 WordWrap = false
             };
+            Theme.StyleInput(box);
             try
             {
                 box.Text = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "README.md"));
@@ -33,9 +36,10 @@ namespace RNNoise_Denoiser
             }
             Controls.Add(box);
 
-            var panel = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 40, FlowDirection = FlowDirection.LeftToRight };
-            _chkDontShow = new CheckBox { Text = "Don't show again", AutoSize = true };
+            var panel = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 40, FlowDirection = FlowDirection.LeftToRight, BackColor = Theme.BgSurface };
+            _chkDontShow = new CheckBox { Text = "Don't show again", AutoSize = true, ForeColor = Theme.TextPrimary, BackColor = Theme.BgSurface };
             var btnOk = new Button { Text = "OK", DialogResult = DialogResult.OK };
+            Theme.StylePrimary(btnOk);
             panel.Controls.Add(_chkDontShow);
             panel.Controls.Add(btnOk);
             Controls.Add(panel);
