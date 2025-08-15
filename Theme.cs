@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace RNNoise_Denoiser
@@ -24,6 +25,7 @@ namespace RNNoise_Denoiser
         {
             form.BackColor = BgBase;
             form.ForeColor = TextPrimary;
+            EnableDarkTitleBar(form.Handle);
         }
 
         public static void StyleInput(Control ctrl)
@@ -67,5 +69,46 @@ namespace RNNoise_Denoiser
             strip.BackColor = BgSurface;
             strip.ForeColor = TextSecondary;
         }
+
+        public static void StyleComboBox(ComboBox box)
+        {
+            box.DrawMode = DrawMode.OwnerDrawFixed;
+            box.FlatStyle = FlatStyle.Flat;
+            box.BackColor = ColorTranslator.FromHtml("#0E1628");
+            box.ForeColor = TextPrimary;
+            UseDarkScrollbars(box);
+            box.DrawItem += (s, e) =>
+            {
+                if (e.Index < 0) return;
+                var isSelected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+                var bg = isSelected ? AccentPrimary : box.BackColor;
+                var fg = isSelected ? BgBase : TextPrimary;
+                using var b = new SolidBrush(bg);
+                using var t = new SolidBrush(fg);
+                e.Graphics.FillRectangle(b, e.Bounds);
+                e.Graphics.DrawString(box.Items[e.Index].ToString()!, e.Font, t, e.Bounds);
+                e.DrawFocusRectangle();
+            };
+        }
+
+        public static void UseDarkScrollbars(Control ctrl)
+        {
+            if (OperatingSystem.IsWindows())
+                SetWindowTheme(ctrl.Handle, "DarkMode_Explorer", null);
+        }
+
+        static void EnableDarkTitleBar(nint handle)
+        {
+            if (!OperatingSystem.IsWindowsVersionAtLeast(10)) return;
+            int useDark = 1;
+            DwmSetWindowAttribute(handle, 19, ref useDark, sizeof(int));
+            DwmSetWindowAttribute(handle, 20, ref useDark, sizeof(int));
+        }
+
+        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+        static extern int SetWindowTheme(nint hWnd, string? appName, string? idList);
+
+        [DllImport("dwmapi.dll")]
+        static extern int DwmSetWindowAttribute(nint hwnd, int attr, ref int attrValue, int attrSize);
     }
 }
