@@ -589,7 +589,7 @@ namespace RNNoise_Denoiser
         {
             if (lvQueue.SelectedItems.Count == 0)
             {
-                MessageBox.Show(this, "Select a file in queue", "Preview", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, Localizer.Tr("Select a file in queue"), Localizer.Tr("Preview"), MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
             string ffplay = Path.Combine(txtFfmpeg.Text.Trim(), "ffplay.exe");
@@ -647,11 +647,11 @@ namespace RNNoise_Denoiser
             }
             bool modelOk = File.Exists(txtModel.Text.Trim());
             var sb = new StringBuilder();
-            sb.AppendLine($"ffmpeg: {(ffmpegOk ? "OK" : "Missing")}");
-            sb.AppendLine($"ffprobe: {(ffprobeOk ? "OK" : "Missing")}");
-            sb.AppendLine($"arnndn filter: {(arnndnOk ? "OK" : "Missing")}");
-            sb.AppendLine($"model: {(modelOk ? "OK" : "Missing")}");
-            MessageBox.Show(this, sb.ToString(), "Environment", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            sb.AppendLine($"ffmpeg: {(ffmpegOk ? Localizer.Tr("OK") : Localizer.Tr("Missing"))}");
+            sb.AppendLine($"ffprobe: {(ffprobeOk ? Localizer.Tr("OK") : Localizer.Tr("Missing"))}");
+            sb.AppendLine($"{Localizer.Tr("arnndn filter")}: {(arnndnOk ? Localizer.Tr("OK") : Localizer.Tr("Missing"))}");
+            sb.AppendLine($"{Localizer.Tr("model")}: {(modelOk ? Localizer.Tr("OK") : Localizer.Tr("Missing"))}");
+            MessageBox.Show(this, sb.ToString(), Localizer.Tr("Environment"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         void LoadPresetsToUi()
@@ -697,11 +697,11 @@ namespace RNNoise_Denoiser
 
         void SavePreset()
         {
-            var name = Prompt("Preset name:");
+            var name = Prompt(Localizer.Tr("Preset name:"));
             if (string.IsNullOrWhiteSpace(name)) return;
             if (DefaultPresets.ContainsKey(name) || _settings.CustomPresets.ContainsKey(name))
             {
-                MessageBox.Show(this, "Preset exists", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, Localizer.Tr("Preset exists"), Localizer.Tr("Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             _settings.CustomPresets[name] = BuildProfileFromUi();
@@ -715,15 +715,15 @@ namespace RNNoise_Denoiser
             if (cboPreset.SelectedItem is not string oldName) return;
             if (DefaultPresets.ContainsKey(oldName))
             {
-                MessageBox.Show(this, "Cannot rename builtin preset", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, Localizer.Tr("Cannot rename builtin preset"), Localizer.Tr("Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             if (!_settings.CustomPresets.TryGetValue(oldName, out var prof)) return;
-            var newName = Prompt("Preset name:", oldName);
+            var newName = Prompt(Localizer.Tr("Preset name:"), oldName);
             if (string.IsNullOrWhiteSpace(newName) || newName == oldName) return;
             if (DefaultPresets.ContainsKey(newName) || _settings.CustomPresets.ContainsKey(newName))
             {
-                MessageBox.Show(this, "Preset exists", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, Localizer.Tr("Preset exists"), Localizer.Tr("Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             _settings.CustomPresets.Remove(oldName);
@@ -738,7 +738,7 @@ namespace RNNoise_Denoiser
             if (cboPreset.SelectedItem is not string name) return;
             if (DefaultPresets.ContainsKey(name))
             {
-                MessageBox.Show(this, "Cannot delete builtin preset", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, Localizer.Tr("Cannot delete builtin preset"), Localizer.Tr("Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             if (_settings.CustomPresets.Remove(name))
@@ -783,8 +783,8 @@ namespace RNNoise_Denoiser
         {
             using var form = new Form { Width = 400, Height = 140, FormBorderStyle = FormBorderStyle.FixedDialog, Text = text, StartPosition = FormStartPosition.CenterParent };
             var tb = new TextBox { Left = 10, Top = 10, Width = 360, Text = defaultValue };
-            var ok = new Button { Text = "OK", Left = 210, Width = 80, Top = 40, DialogResult = DialogResult.OK };
-            var cancel = new Button { Text = "Cancel", Left = 300, Width = 80, Top = 40, DialogResult = DialogResult.Cancel };
+            var ok = new Button { Text = Localizer.Tr("OK"), Left = 210, Width = 80, Top = 40, DialogResult = DialogResult.OK };
+            var cancel = new Button { Text = Localizer.Tr("Cancel"), Left = 300, Width = 80, Top = 40, DialogResult = DialogResult.Cancel };
             form.Controls.Add(tb);
             form.Controls.Add(ok);
             form.Controls.Add(cancel);
