@@ -7,10 +7,12 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>RNNoise Denoiser Icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="translations.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="RNNoise Denoiser Icon.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
