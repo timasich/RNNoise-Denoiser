@@ -335,12 +335,13 @@ namespace RNNoise_Denoiser
                 p.Start();
 
                 var timeRe = new Regex(@"time=(\d+):(\d+):(\d+\.?\d*)", RegexOptions.Compiled);
-                _ = Task.Run(async () =>
+                var stderrSb = new StringBuilder();
+                var stderrTask = Task.Run(async () =>
                 {
-                    while (!p.HasExited)
+                    string? line;
+                    while ((line = await p.StandardError.ReadLineAsync()) != null)
                     {
-                        var line = await p.StandardError.ReadLineAsync();
-                        if (line == null) break;
+                        stderrSb.AppendLine(line);
                         var m = timeRe.Match(line);
                         if (m.Success && duration.HasValue)
                         {
@@ -354,9 +355,11 @@ namespace RNNoise_Denoiser
                     }
                 }, ct);
 
-                await p.WaitForExitAsync(ct);
+                await Task.WhenAll(p.WaitForExitAsync(ct), stderrTask);
                 if (p.ExitCode == 0) return (true, "");
-                return (false, $"FFmpeg code {p.ExitCode}");
+                string errTxt = stderrSb.ToString().Trim();
+                if (errTxt.Length > 1000) errTxt = errTxt[^1000..];
+                return (false, $"FFmpeg code {p.ExitCode}: {errTxt}");
             }
             catch (OperationCanceledException)
             {
