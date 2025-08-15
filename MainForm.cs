@@ -28,6 +28,9 @@ namespace RNNoise_Denoiser
             InitializeComponent();
             _tip = new ToolTip();
 
+            foreach (var l in Localizer.Langs)
+                cboLang.Items.Add(l);
+
             // minor toggles
             chkHighpass.CheckedChanged += (s, e) => numHighpass.Enabled = chkHighpass.Checked;
             chkLowpass.CheckedChanged += (s, e) => numLowpass.Enabled = chkLowpass.Checked;
@@ -37,6 +40,10 @@ namespace RNNoise_Denoiser
             Directory.CreateDirectory(dir);
             _settingsPath = Path.Combine(dir, "settings.json");
             _settings = AppSettings.Load(_settingsPath);
+
+            var langItem = Localizer.Langs.FirstOrDefault(l => l.Code == _settings.Language) ?? Localizer.Langs[0];
+            Localizer.Set(langItem.Code);
+            cboLang.SelectedItem = langItem;
 
             // Defaults to your paths (editable in UI)
             if (string.IsNullOrWhiteSpace(_settings.FfmpegBinPath))
@@ -48,7 +55,7 @@ namespace RNNoise_Denoiser
 
             LoadSettingsToUi();
             WireEvents();
-            InitTooltips();
+            ApplyLocalization();
 
             AllowDrop = true;
             DragEnter += (s, e) => { if (e.Data!.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy; };
@@ -59,31 +66,29 @@ namespace RNNoise_Denoiser
         {
             btnFfmpegBrowse.Click += (s, e) =>
             {
-                using var fbd = new FolderBrowserDialog { Description = "Папка с ffmpeg/bin (ffmpeg.exe, ffprobe.exe)" };
+                using var fbd = new FolderBrowserDialog { Description = Localizer.Tr("Folder with ffmpeg/bin (ffmpeg.exe, ffprobe.exe)") };
                 if (fbd.ShowDialog(this) == DialogResult.OK) txtFfmpeg.Text = fbd.SelectedPath;
             };
             btnModelBrowse.Click += (s, e) =>
             {
-                using var ofd = new OpenFileDialog { Filter = "RNNoise model (*.rnnn)|*.rnnn|All files|*.*" };
+                string filter = $"{Localizer.Tr("RNNoise model file")} (*.rnnn)|*.rnnn|{Localizer.Tr("All files")}|*.*";
+                using var ofd = new OpenFileDialog { Filter = filter };
                 if (ofd.ShowDialog(this) == DialogResult.OK) txtModel.Text = ofd.FileName;
             };
             btnOutputBrowse.Click += (s, e) =>
             {
-                using var fbd = new FolderBrowserDialog { Description = "Папка вывода" };
+                using var fbd = new FolderBrowserDialog { Description = Localizer.Tr("Output folder") };
                 if (fbd.ShowDialog(this) == DialogResult.OK) txtOutput.Text = fbd.SelectedPath;
             };
             btnAddFiles.Click += (s, e) =>
             {
-                using var ofd = new OpenFileDialog
-                {
-                    Filter = "Видео/Аудио|*.mp4;*.mov;*.mkv;*.m4v;*.avi;*.webm;*.wav;*.mp3;*.m4a;*.aac;*.flac;*.ogg|Все файлы|*.*",
-                    Multiselect = true
-                };
+                string filter = $"{Localizer.Tr("Video/Audio")}|*.mp4;*.mov;*.mkv;*.m4v;*.avi;*.webm;*.wav;*.mp3;*.m4a;*.aac;*.flac;*.ogg|{Localizer.Tr("All files")}|*.*";
+                using var ofd = new OpenFileDialog { Filter = filter, Multiselect = true };
                 if (ofd.ShowDialog(this) == DialogResult.OK) EnqueueFiles(ofd.FileNames);
             };
             btnAddFolder.Click += (s, e) =>
             {
-                using var fbd = new FolderBrowserDialog { Description = "Папка с файлами" };
+                using var fbd = new FolderBrowserDialog { Description = Localizer.Tr("Folder with files") };
                 if (fbd.ShowDialog(this) == DialogResult.OK)
                 {
                     var files = Directory.EnumerateFiles(fbd.SelectedPath, "*.*", SearchOption.AllDirectories)
@@ -95,6 +100,17 @@ namespace RNNoise_Denoiser
             btnStart.Click += async (s, e) => await StartAsync();
             btnCancel.Click += (s, e) => _cts?.Cancel();
             FormClosing += (s, e) => SaveSettingsFromUi();
+
+            cboLang.SelectedIndexChanged += (s, e) =>
+            {
+                if (cboLang.SelectedItem is LangItem li)
+                {
+                    Localizer.Set(li.Code);
+                    ApplyLocalization();
+                    _settings.Language = li.Code;
+                    _settings.Save(_settingsPath);
+                }
+            };
 
             lvQueue.DoubleClick += (s, e) =>
             {
@@ -114,30 +130,96 @@ namespace RNNoise_Denoiser
                 }
                 catch { }
             };
+        }
 
+        void ApplyLocalization()
+        {
+            lblFfmpeg.Text = Localizer.Tr("FFmpeg bin:");
+            btnFfmpegBrowse.Text = Localizer.Tr("Browse");
+            lblModel.Text = Localizer.Tr("RNNoise .rnnn:");
+            btnModelBrowse.Text = Localizer.Tr("Browse");
+            lblOutput.Text = Localizer.Tr("Output folder:");
+            btnOutputBrowse.Text = Localizer.Tr("Browse");
+            lblCodec.Text = Localizer.Tr("Audio codec:");
+            lblBr.Text = Localizer.Tr("Bitrate:");
+            lblMix.Text = Localizer.Tr("mix (0-1):");
+            lblHp.Text = Localizer.Tr("Highpass (Hz):");
+            chkHighpass.Text = Localizer.Tr("On");
+            lblSn.Text = Localizer.Tr("SpeechNorm:");
+            chkSpeechNorm.Text = Localizer.Tr("On");
+            lblLp.Text = Localizer.Tr("Lowpass (Hz):");
+            chkLowpass.Text = Localizer.Tr("On");
+            lblCopy.Text = Localizer.Tr("Copy video:");
+            chkCopyVideo.Text = Localizer.Tr("On");
+            btnAddFiles.Text = Localizer.Tr("Add files");
+            btnAddFolder.Text = Localizer.Tr("Add folder");
+            btnStart.Text = Localizer.Tr("Start");
+            btnCancel.Text = Localizer.Tr("Cancel");
+            chFile.Text = Localizer.Tr("File");
+            chStatus.Text = Localizer.Tr("Status");
+            chProgress.Text = Localizer.Tr("Progress");
+            chTime.Text = Localizer.Tr("Time");
+            chOutput.Text = Localizer.Tr("Output");
+            tslStatus.Text = Localizer.Tr("Ready");
+
+            _tip.SetToolTip(lblFfmpeg, Localizer.Tr("Folder with ffmpeg.exe and ffprobe.exe"));
+            _tip.SetToolTip(txtFfmpeg, Localizer.Tr("Folder with ffmpeg.exe and ffprobe.exe"));
+            _tip.SetToolTip(btnFfmpegBrowse, Localizer.Tr("Select ffmpeg/bin folder"));
+            _tip.SetToolTip(lblModel, Localizer.Tr("RNNoise model file (.rnnn)"));
+            _tip.SetToolTip(txtModel, Localizer.Tr("RNNoise model file (.rnnn)"));
+            _tip.SetToolTip(btnModelBrowse, Localizer.Tr("Select RNNoise model file"));
+            _tip.SetToolTip(lblOutput, Localizer.Tr("Folder to save processed files"));
+            _tip.SetToolTip(txtOutput, Localizer.Tr("Folder to save processed files"));
+            _tip.SetToolTip(btnOutputBrowse, Localizer.Tr("Select output folder"));
+            _tip.SetToolTip(lblCodec, Localizer.Tr("Audio codec of output file"));
+            _tip.SetToolTip(cboAudioCodec, Localizer.Tr("Audio codec of output file"));
+            _tip.SetToolTip(lblBr, Localizer.Tr("Audio bitrate: higher = better quality but larger file"));
+            _tip.SetToolTip(cboBitrate, Localizer.Tr("Audio bitrate: higher = better quality but larger file"));
+            _tip.SetToolTip(lblMix, Localizer.Tr("Noise reduction amount: 0 = no processing, 1 = maximum reduction"));
+            _tip.SetToolTip(numMix, Localizer.Tr("Noise reduction amount: 0 = no processing, 1 = maximum reduction"));
+            _tip.SetToolTip(lblHp, Localizer.Tr("Removes frequencies below specified value, helps remove hum"));
+            _tip.SetToolTip(chkHighpass, Localizer.Tr("Removes frequencies below specified value, helps remove hum"));
+            _tip.SetToolTip(numHighpass, Localizer.Tr("High-pass filter cutoff frequency (Hz)"));
+            _tip.SetToolTip(lblSn, Localizer.Tr("Normalizes speech loudness"));
+            _tip.SetToolTip(chkSpeechNorm, Localizer.Tr("Normalizes speech loudness"));
+            _tip.SetToolTip(lblLp, Localizer.Tr("Removes frequencies above specified value, suppresses HF noise"));
+            _tip.SetToolTip(chkLowpass, Localizer.Tr("Removes frequencies above specified value, suppresses HF noise"));
+            _tip.SetToolTip(numLowpass, Localizer.Tr("Low-pass filter cutoff frequency (Hz)"));
+            _tip.SetToolTip(lblCopy, Localizer.Tr("Do not re-encode video, replace audio only"));
+            _tip.SetToolTip(chkCopyVideo, Localizer.Tr("Do not re-encode video, replace audio only"));
+            _tip.SetToolTip(btnAddFiles, Localizer.Tr("Add files to queue"));
+            _tip.SetToolTip(btnAddFolder, Localizer.Tr("Add all supported files from folder"));
+            _tip.SetToolTip(btnStart, Localizer.Tr("Start processing selected files"));
+            _tip.SetToolTip(btnCancel, Localizer.Tr("Cancel current processing"));
+
+            BuildContextMenu();
+        }
+
+        void BuildContextMenu()
+        {
             var ctx = new ContextMenuStrip();
-            ctx.Items.Add("Удалить из очереди", null, (s, e) =>
+            ctx.Items.Add(Localizer.Tr("Remove from queue"), null, (s, e) =>
             {
                 foreach (ListViewItem it in lvQueue.SelectedItems.Cast<ListViewItem>().ToArray())
                     lvQueue.Items.Remove(it);
             });
-            ctx.Items.Add("Дублировать", null, (s, e) =>
+            ctx.Items.Add(Localizer.Tr("Duplicate"), null, (s, e) =>
             {
                 foreach (ListViewItem it in lvQueue.SelectedItems.Cast<ListViewItem>().ToArray())
                 {
                     var qi = (QueueItem)it.Tag!;
-                    var copy = new ListViewItem(new[] { "", qi.Input, "В очереди", "0%", "", "" })
+                    var copy = new ListViewItem(new[] { "", qi.Input, Localizer.Tr("Queued"), "0%", "", "" })
                     { Tag = new QueueItem { Input = qi.Input }, Checked = true };
                     lvQueue.Items.Add(copy);
                 }
             });
-            ctx.Items.Add("Открыть папку с оригиналом", null, (s, e) =>
+            ctx.Items.Add(Localizer.Tr("Open folder with original"), null, (s, e) =>
             {
                 if (lvQueue.SelectedItems.Count == 0) return;
                 var qi = (QueueItem)lvQueue.SelectedItems[0].Tag!;
                 try { Process.Start("explorer.exe", $"/select,\"{qi.Input}\""); } catch { }
             });
-            ctx.Items.Add("Открыть папку вывода", null, (s, e) =>
+            ctx.Items.Add(Localizer.Tr("Open output folder"), null, (s, e) =>
             {
                 if (lvQueue.SelectedItems.Count == 0) return;
                 var qi = (QueueItem)lvQueue.SelectedItems[0].Tag!;
@@ -156,40 +238,17 @@ namespace RNNoise_Denoiser
                 catch { }
             });
             ctx.Items.Add(new ToolStripSeparator());
-            ctx.Items.Add("Отметить для очистки", null, (s, e) =>
+            ctx.Items.Add(Localizer.Tr("Mark for cleanup"), null, (s, e) =>
             {
                 foreach (ListViewItem it in lvQueue.SelectedItems.Cast<ListViewItem>())
                     it.Checked = true;
             });
-            ctx.Items.Add("Снять из очистки", null, (s, e) =>
+            ctx.Items.Add(Localizer.Tr("Unmark from cleanup"), null, (s, e) =>
             {
                 foreach (ListViewItem it in lvQueue.SelectedItems.Cast<ListViewItem>())
                     it.Checked = false;
             });
             lvQueue.ContextMenuStrip = ctx;
-        }
-
-        void InitTooltips()
-        {
-            _tip.SetToolTip(txtFfmpeg, "Папка с ffmpeg.exe и ffprobe.exe");
-            _tip.SetToolTip(btnFfmpegBrowse, "Выбрать папку ffmpeg/bin");
-            _tip.SetToolTip(txtModel, "Файл модели RNNoise (.rnnn)");
-            _tip.SetToolTip(btnModelBrowse, "Выбрать файл модели RNNoise");
-            _tip.SetToolTip(txtOutput, "Папка для сохранения обработанных файлов");
-            _tip.SetToolTip(btnOutputBrowse, "Выбрать папку вывода");
-            _tip.SetToolTip(cboAudioCodec, "Кодек аудио выходного файла");
-            _tip.SetToolTip(cboBitrate, "Битрейт аудио: выше — лучше качество, но больше размер файла");
-            _tip.SetToolTip(numMix, "Степень шумоподавления: 0 — без обработки, 1 — максимальное подавление");
-            _tip.SetToolTip(chkHighpass, "Удаляет частоты ниже указанной, помогает убрать гул");
-            _tip.SetToolTip(numHighpass, "Граница фильтра высоких частот (Гц)");
-            _tip.SetToolTip(chkLowpass, "Удаляет частоты выше указанной, подавляет ВЧ-шумы");
-            _tip.SetToolTip(numLowpass, "Граница фильтра низких частот (Гц)");
-            _tip.SetToolTip(chkSpeechNorm, "Выравнивает громкость речи");
-            _tip.SetToolTip(chkCopyVideo, "Не перекодировать видео, только заменять аудио");
-            _tip.SetToolTip(btnAddFiles, "Добавить файлы в очередь");
-            _tip.SetToolTip(btnAddFolder, "Добавить все поддерживаемые файлы из папки");
-            _tip.SetToolTip(btnStart, "Начать обработку отмеченных файлов");
-            _tip.SetToolTip(btnCancel, "Отменить текущую обработку");
         }
 
         void LoadSettingsToUi()
@@ -208,6 +267,8 @@ namespace RNNoise_Denoiser
             cboAudioCodec.SelectedItem = _settings.AudioCodec;
             cboBitrate.SelectedItem = _settings.AudioBitrate;
             chkCopyVideo.Checked = _settings.CopyVideo;
+            var lang = Localizer.Langs.FirstOrDefault(l => l.Code == _settings.Language) ?? Localizer.Langs[0];
+            cboLang.SelectedItem = lang;
         }
 
         void SaveSettingsFromUi()
@@ -225,6 +286,7 @@ namespace RNNoise_Denoiser
             _settings.AudioCodec = cboAudioCodec.SelectedItem?.ToString() ?? "aac";
             _settings.AudioBitrate = cboBitrate.SelectedItem?.ToString() ?? "192k";
             _settings.CopyVideo = chkCopyVideo.Checked;
+            if (cboLang.SelectedItem is LangItem li) _settings.Language = li.Code; else _settings.Language = "en";
             _settings.Save(_settingsPath);
         }
 
@@ -233,12 +295,12 @@ namespace RNNoise_Denoiser
             int added = 0;
             foreach (var f in files.Distinct())
             {
-                var it = new ListViewItem(new[] { "", f, "В очереди", "0%", "", "" })
+                var it = new ListViewItem(new[] { "", f, Localizer.Tr("Queued"), "0%", "", "" })
                 { Tag = new QueueItem { Input = f }, Checked = true };
                 lvQueue.Items.Add(it);
                 added++;
             }
-            tslStatus.Text = $"Добавлено файлов: {added}";
+            tslStatus.Text = string.Format(Localizer.Tr("Added files: {0}"), added);
         }
 
         async Task StartAsync()
@@ -249,7 +311,7 @@ namespace RNNoise_Denoiser
             btnStart.Enabled = false;
             btnCancel.Enabled = true;
             _cts = new CancellationTokenSource();
-            tslStatus.Text = "Обработка…";
+            tslStatus.Text = Localizer.Tr("Processing...");
 
             try
             {
@@ -259,7 +321,7 @@ namespace RNNoise_Denoiser
                     if (!it.Checked) continue;
 
                     var qi = (QueueItem)it.Tag!;
-                    it.SubItems[2].Text = "Подготовка";
+                    it.SubItems[2].Text = Localizer.Tr("Preparing");
                     it.SubItems[3].Text = "0%";
                     it.SubItems[4].Text = "";
 
@@ -277,18 +339,18 @@ namespace RNNoise_Denoiser
                         rem => BeginInvoke(new Action(() =>
                         {
                             it.SubItems[4].Text = rem.ToString("hh\\:mm\\:ss");
-                            tslStatus.Text = $"Осталось {rem:hh\\:mm\\:ss}";
+                            tslStatus.Text = string.Format(Localizer.Tr("Remaining {0}"), rem.ToString("hh\\:mm\\:ss"));
                         })),
                         _cts.Token);
                     sw.Stop();
 
                     BeginInvoke(new Action(() =>
                     {
-                        it.SubItems[2].Text = ok ? "Готово" : ("Ошибка: " + err);
+                        it.SubItems[2].Text = ok ? Localizer.Tr("Done") : (Localizer.Tr("Error:") + " " + err);
                         if (ok) it.SubItems[3].Text = "100%";
                         it.SubItems[4].Text = sw.Elapsed.ToString("hh\\:mm\\:ss");
                         if (ok) it.Checked = false;
-                        tslStatus.Text = ok ? $"Время: {sw.Elapsed:hh\\:mm\\:ss}" : "Готов";
+                        tslStatus.Text = ok ? string.Format(Localizer.Tr("Time: {0}"), sw.Elapsed.ToString("hh\\:mm\\:ss")) : Localizer.Tr("Ready");
                     }));
                 }
             }
@@ -297,7 +359,7 @@ namespace RNNoise_Denoiser
                 btnStart.Enabled = true;
                 btnCancel.Enabled = false;
                 _cts = null;
-                tslStatus.Text = "Готов";
+                tslStatus.Text = Localizer.Tr("Ready");
             }
         }
 
@@ -307,19 +369,19 @@ namespace RNNoise_Denoiser
             string ffprobe = Path.Combine(txtFfmpeg.Text.Trim(), "ffprobe.exe");
             if (!File.Exists(ffmpeg) || !File.Exists(ffprobe))
             {
-                MessageBox.Show(this, "Не найден ffmpeg.exe/ffprobe.exe. Укажи путь к папке bin.", "Ошибка",
+                MessageBox.Show(this, Localizer.Tr("ffmpeg.exe/ffprobe.exe not found. Specify path to bin folder."), Localizer.Tr("Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
             if (!File.Exists(txtModel.Text.Trim()))
             {
-                MessageBox.Show(this, "Не найден файл модели .rnnn.", "Ошибка",
+                MessageBox.Show(this, Localizer.Tr(".rnnn model file not found."), Localizer.Tr("Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
             if (string.IsNullOrWhiteSpace(txtOutput.Text) || !Directory.Exists(txtOutput.Text))
             {
-                MessageBox.Show(this, "Укажи существующую папку вывода.", "Ошибка",
+                MessageBox.Show(this, Localizer.Tr("Specify an existing output folder."), Localizer.Tr("Error"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
@@ -468,7 +530,7 @@ namespace RNNoise_Denoiser
                 });
 
                 await Task.WhenAll(p.WaitForExitAsync(), stderrTask);
-                if (ct.IsCancellationRequested) return (false, "Отменено");
+                if (ct.IsCancellationRequested) return (false, Localizer.Tr("Cancelled"));
                 if (p.ExitCode == 0) return (true, "");
                 string errTxt = stderrSb.ToString().Trim();
                 if (errTxt.Length > 1000) errTxt = errTxt[^1000..];
@@ -480,7 +542,7 @@ namespace RNNoise_Denoiser
             }
             static string ModelPathForFfmpeg(string path)
             {
-                // Заменяем обратные слеши на прямые и экранируем двоеточие
+                // Replace backslashes with forward slashes and escape colon
                 return path.Replace("\\", "/").Replace(":", "\\:");
             }
 
@@ -519,6 +581,7 @@ namespace RNNoise_Denoiser
         public string AudioCodec { get; set; } = "aac";
         public string AudioBitrate { get; set; } = "192k";
         public bool CopyVideo { get; set; } = true;
+        public string Language { get; set; } = "en";
 
         public static AppSettings Load(string path)
         {
@@ -550,6 +613,124 @@ namespace RNNoise_Denoiser
     {
         public string Input { get; set; } = string.Empty;
         public string Output { get; set; } = string.Empty;
+    }
+
+    public sealed class LangItem
+    {
+        public string Code { get; }
+        public string Name { get; }
+        public LangItem(string code, string name)
+        {
+            Code = code;
+            Name = name;
+        }
+        public override string ToString() => Name;
+    }
+
+    public static class Localizer
+    {
+        public static string Current { get; private set; } = "en";
+        public static readonly LangItem[] Langs = new[]
+        {
+            new LangItem("en", "English"),
+            new LangItem("ru", "Русский"),
+            new LangItem("pt", "Português"),
+            new LangItem("es", "Español"),
+            new LangItem("de", "Deutsch"),
+            new LangItem("fr", "Français"),
+            new LangItem("tr", "Türkçe"),
+            new LangItem("pl", "Polski"),
+            new LangItem("ja", "日本語"),
+            new LangItem("ko", "한국어"),
+            new LangItem("it", "Italiano"),
+            new LangItem("uk", "Українська"),
+            new LangItem("cs", "Česky"),
+            new LangItem("sk", "Slovenčina"),
+            new LangItem("ro", "Română"),
+            new LangItem("nl", "Nederlands"),
+            new LangItem("sr", "Srpski/Hrvatski/Bosanski/Crnogorski"),
+        };
+
+        static readonly Dictionary<string, Dictionary<string, string>> Data = new()
+        {
+            ["en"] = new(),
+            ["ru"] = new()
+            {
+                ["FFmpeg bin:"] = "Папка ffmpeg:",
+                ["Browse"] = "Обзор",
+                ["RNNoise .rnnn:"] = "Модель RNNoise (.rnnn):",
+                ["Output folder:"] = "Папка вывода:",
+                ["Audio codec:"] = "Кодек аудио:",
+                ["Bitrate:"] = "Битрейт:",
+                ["mix (0-1):"] = "mix (0–1):",
+                ["Highpass (Hz):"] = "Highpass (Гц):",
+                ["Lowpass (Hz):"] = "Lowpass (Гц):",
+                ["SpeechNorm:"] = "SpeechNorm:",
+                ["Copy video:"] = "Копировать видео:",
+                ["On"] = "Вкл",
+                ["Add files"] = "Добавить файлы",
+                ["Add folder"] = "Добавить папку",
+                ["Start"] = "Старт",
+                ["Cancel"] = "Отмена",
+                ["File"] = "Файл",
+                ["Status"] = "Статус",
+                ["Progress"] = "Прогресс",
+                ["Time"] = "Время",
+                ["Output"] = "Выход",
+                ["Ready"] = "Готов",
+                ["Processing..."] = "Обработка…",
+                ["Remaining {0}"] = "Осталось {0}",
+                ["Time: {0}"] = "Время: {0}",
+                ["Queued"] = "В очереди",
+                ["Preparing"] = "Подготовка",
+                ["Done"] = "Готово",
+                ["Error:"] = "Ошибка:",
+                ["Added files: {0}"] = "Добавлено файлов: {0}",
+                ["Remove from queue"] = "Удалить из очереди",
+                ["Duplicate"] = "Дублировать",
+                ["Open folder with original"] = "Открыть папку с оригиналом",
+                ["Open output folder"] = "Открыть папку вывода",
+                ["Mark for cleanup"] = "Отметить для очистки",
+                ["Unmark from cleanup"] = "Снять из очистки",
+                ["ffmpeg.exe/ffprobe.exe not found. Specify path to bin folder."] = "Не найден ffmpeg.exe/ffprobe.exe. Укажи путь к папке bin.",
+                [".rnnn model file not found."] = "Не найден файл модели .rnnn.",
+                ["Specify an existing output folder."] = "Укажи существующую папку вывода.",
+                ["Error"] = "Ошибка",
+                ["Folder with ffmpeg.exe and ffprobe.exe"] = "Папка с ffmpeg.exe и ffprobe.exe",
+                ["Select ffmpeg/bin folder"] = "Выбрать папку ffmpeg/bin",
+                ["RNNoise model file (.rnnn)"] = "Файл модели RNNoise (.rnnn)",
+                ["Select RNNoise model file"] = "Выбрать файл модели RNNoise",
+                ["Folder to save processed files"] = "Папка для сохранения обработанных файлов",
+                ["Select output folder"] = "Выбрать папку вывода",
+                ["Audio codec of output file"] = "Кодек аудио выходного файла",
+                ["Audio bitrate: higher = better quality but larger file"] = "Битрейт аудио: выше — лучше качество, но больше размер файла",
+                ["Noise reduction amount: 0 = no processing, 1 = maximum reduction"] = "Степень шумоподавления: 0 — без обработки, 1 — максимальное подавление",
+                ["Removes frequencies below specified value, helps remove hum"] = "Удаляет частоты ниже указанной, помогает убрать гул",
+                ["High-pass filter cutoff frequency (Hz)"] = "Граница фильтра высоких частот (Гц)",
+                ["Removes frequencies above specified value, suppresses HF noise"] = "Удаляет частоты выше указанной, подавляет ВЧ-шумы",
+                ["Low-pass filter cutoff frequency (Hz)"] = "Граница фильтра низких частот (Гц)",
+                ["Normalizes speech loudness"] = "Выравнивает громкость речи",
+                ["Do not re-encode video, replace audio only"] = "Не перекодировать видео, только заменять аудио",
+                ["Add files to queue"] = "Добавить файлы в очередь",
+                ["Add all supported files from folder"] = "Добавить все поддерживаемые файлы из папки",
+                ["Start processing selected files"] = "Начать обработку отмеченных файлов",
+                ["Cancel current processing"] = "Отменить текущую обработку",
+                ["Video/Audio"] = "Видео/Аудио",
+                ["All files"] = "Все файлы",
+                ["Folder with ffmpeg/bin (ffmpeg.exe, ffprobe.exe)"] = "Папка с ffmpeg/bin (ffmpeg.exe, ffprobe.exe)",
+                ["RNNoise model file"] = "Файл модели RNNoise",
+                ["Folder with files"] = "Папка с файлами",
+                ["Output folder"] = "Папка вывода",
+                ["Cancelled"] = "Отменено"
+            }
+        };
+
+        public static void Set(string code) => Current = code;
+        public static string Tr(string key)
+        {
+            if (Data.TryGetValue(Current, out var d) && d.TryGetValue(key, out var v)) return v;
+            return key;
+        }
     }
 
 }
