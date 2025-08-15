@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Drawing;
 
 namespace RNNoise_Denoiser
 {
@@ -72,6 +73,7 @@ namespace RNNoise_Denoiser
             ApplyLocalization();
             LoadPresetsToUi();
             SelectPresetFromProfile(_settings.Profile);
+            ApplyTheme();
             ShowReadmeIfNeeded();
 
             AllowDrop = true;
@@ -229,6 +231,49 @@ namespace RNNoise_Denoiser
             _tip.SetToolTip(btnCancel, Localizer.Tr("Cancel current processing"));
 
             BuildContextMenu();
+        }
+
+        void ApplyTheme()
+        {
+            Theme.Apply(this);
+            panelTop.BackColor = Theme.BgSurface;
+            tableLayout.BackColor = Theme.BgSurface;
+            rightGrid.BackColor = Theme.BgElevated;
+
+            foreach (var lbl in new[] { lblFfmpeg, lblModel, lblOutput, lblCodec, lblBr, lblMix, lblHp, lblSn, lblLp, lblCopy, lblPreset })
+                lbl.ForeColor = Theme.TextSecondary;
+
+            foreach (Control ctrl in new Control[] { txtFfmpeg, txtModel, txtOutput, numMix, numHighpass, numLowpass })
+                Theme.StyleInput(ctrl);
+            Theme.StyleComboBox(cboAudioCodec);
+            Theme.StyleComboBox(cboBitrate);
+            Theme.StyleComboBox(cboPreset);
+
+            foreach (var chk in new[] { chkCopyVideo, chkHighpass, chkLowpass, chkSpeechNorm })
+            {
+                chk.ForeColor = Theme.TextPrimary;
+                chk.BackColor = Theme.BgSurface;
+            }
+
+            Theme.StylePrimary(btnStart);
+            Theme.StylePrimary(btnSavePreset);
+            Theme.StyleSecondary(btnFfmpegBrowse);
+            Theme.StyleSecondary(btnModelBrowse);
+            Theme.StyleSecondary(btnOutputBrowse);
+            Theme.StyleSecondary(btnAddFiles);
+            Theme.StyleSecondary(btnAddFolder);
+            Theme.StyleSecondary(btnCheckEnv);
+            Theme.StyleSecondary(btnPreview);
+            Theme.StyleSecondary(btnCancel);
+            Theme.StyleSecondary(btnRenamePreset);
+            Theme.StyleDanger(btnDeletePreset);
+
+            Theme.StyleListView(lvQueue);
+
+            Theme.StyleStatusStrip(statusStrip);
+            tslStatus.ForeColor = Theme.TextSecondary;
+            tslMadeBy.ForeColor = Theme.TextSecondary;
+            Theme.StyleComboBox(cboLang.ComboBox);
         }
 
         void BuildContextMenu()
