@@ -18,6 +18,7 @@ namespace RNNoise_Denoiser
         CancellationTokenSource? _cts;
         AppSettings _settings = null!;
         readonly string _settingsPath;
+        readonly ToolTip _tip;
 
         static readonly string[] VideoExts = { ".mp4", ".mov", ".mkv", ".m4v", ".avi", ".webm" };
         static readonly string[] AudioExts = { ".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg" };
@@ -25,6 +26,7 @@ namespace RNNoise_Denoiser
         public MainForm()
         {
             InitializeComponent();
+            _tip = new ToolTip();
 
             // minor toggles
             chkHighpass.CheckedChanged += (s, e) => numHighpass.Enabled = chkHighpass.Checked;
@@ -46,6 +48,7 @@ namespace RNNoise_Denoiser
 
             LoadSettingsToUi();
             WireEvents();
+            InitTooltips();
 
             AllowDrop = true;
             DragEnter += (s, e) => { if (e.Data!.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy; };
@@ -164,6 +167,29 @@ namespace RNNoise_Denoiser
                     it.Checked = false;
             });
             lvQueue.ContextMenuStrip = ctx;
+        }
+
+        void InitTooltips()
+        {
+            _tip.SetToolTip(txtFfmpeg, "Папка с ffmpeg.exe и ffprobe.exe");
+            _tip.SetToolTip(btnFfmpegBrowse, "Выбрать папку ffmpeg/bin");
+            _tip.SetToolTip(txtModel, "Файл модели RNNoise (.rnnn)");
+            _tip.SetToolTip(btnModelBrowse, "Выбрать файл модели RNNoise");
+            _tip.SetToolTip(txtOutput, "Папка для сохранения обработанных файлов");
+            _tip.SetToolTip(btnOutputBrowse, "Выбрать папку вывода");
+            _tip.SetToolTip(cboAudioCodec, "Кодек аудио выходного файла");
+            _tip.SetToolTip(cboBitrate, "Битрейт аудио: выше — лучше качество, но больше размер файла");
+            _tip.SetToolTip(numMix, "Степень шумоподавления: 0 — без обработки, 1 — максимальное подавление");
+            _tip.SetToolTip(chkHighpass, "Удаляет частоты ниже указанной, помогает убрать гул");
+            _tip.SetToolTip(numHighpass, "Граница фильтра высоких частот (Гц)");
+            _tip.SetToolTip(chkLowpass, "Удаляет частоты выше указанной, подавляет ВЧ-шумы");
+            _tip.SetToolTip(numLowpass, "Граница фильтра низких частот (Гц)");
+            _tip.SetToolTip(chkSpeechNorm, "Выравнивает громкость речи");
+            _tip.SetToolTip(chkCopyVideo, "Не перекодировать видео, только заменять аудио");
+            _tip.SetToolTip(btnAddFiles, "Добавить файлы в очередь");
+            _tip.SetToolTip(btnAddFolder, "Добавить все поддерживаемые файлы из папки");
+            _tip.SetToolTip(btnStart, "Начать обработку отмеченных файлов");
+            _tip.SetToolTip(btnCancel, "Отменить текущую обработку");
         }
 
         void LoadSettingsToUi()
@@ -416,13 +442,14 @@ namespace RNNoise_Denoiser
             {
                 using var p = new Process { StartInfo = psi, EnableRaisingEvents = true };
                 p.Start();
+                using var reg = ct.Register(() => { try { if (!p.HasExited) p.Kill(true); } catch { } });
 
                 var timeRe = new Regex(@"time=(\d+):(\d+):(\d+\.?\d*)", RegexOptions.Compiled);
                 var stderrSb = new StringBuilder();
                 var stderrTask = Task.Run(async () =>
                 {
                     string? line;
-                    while ((line = await p.StandardError.ReadLineAsync()) != null)
+                    while ((line = await p.StandardError.ReadLineAsync()) != null && !ct.IsCancellationRequested)
                     {
                         stderrSb.AppendLine(line);
                         var m = timeRe.Match(line);
@@ -438,17 +465,14 @@ namespace RNNoise_Denoiser
                             if (remain >= 0) reportRemaining(TimeSpan.FromSeconds(remain));
                         }
                     }
-                }, ct);
+                });
 
-                await Task.WhenAll(p.WaitForExitAsync(ct), stderrTask);
+                await Task.WhenAll(p.WaitForExitAsync(), stderrTask);
+                if (ct.IsCancellationRequested) return (false, "Отменено");
                 if (p.ExitCode == 0) return (true, "");
                 string errTxt = stderrSb.ToString().Trim();
                 if (errTxt.Length > 1000) errTxt = errTxt[^1000..];
                 return (false, $"FFmpeg code {p.ExitCode}: {errTxt}");
-            }
-            catch (OperationCanceledException)
-            {
-                return (false, "Отменено");
             }
             catch (Exception ex)
             {
