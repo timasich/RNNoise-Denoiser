@@ -243,8 +243,11 @@ namespace RNNoise_Denoiser
             foreach (var lbl in new[] { lblFfmpeg, lblModel, lblOutput, lblCodec, lblBr, lblMix, lblHp, lblSn, lblLp, lblCopy, lblPreset })
                 lbl.ForeColor = Theme.TextSecondary;
 
-            foreach (Control ctrl in new Control[] { txtFfmpeg, txtModel, txtOutput, cboAudioCodec, cboBitrate, cboPreset, numMix, numHighpass, numLowpass })
+            foreach (Control ctrl in new Control[] { txtFfmpeg, txtModel, txtOutput, numMix, numHighpass, numLowpass })
                 Theme.StyleInput(ctrl);
+
+            foreach (var box in new[] { cboAudioCodec, cboBitrate, cboPreset, cboLang.ComboBox })
+                Theme.StyleComboBox(box);
 
             foreach (var chk in new[] { chkCopyVideo, chkHighpass, chkLowpass, chkSpeechNorm })
             {
@@ -268,6 +271,11 @@ namespace RNNoise_Denoiser
             lvQueue.BackColor = ColorTranslator.FromHtml("#0E1628");
             lvQueue.ForeColor = Theme.TextPrimary;
             lvQueue.BorderStyle = BorderStyle.FixedSingle;
+            lvQueue.OwnerDraw = true;
+            lvQueue.DrawColumnHeader += LvQueue_DrawColumnHeader;
+            lvQueue.DrawItem += LvQueue_DrawItem;
+            lvQueue.DrawSubItem += LvQueue_DrawSubItem;
+            Theme.UseDarkScrollbars(lvQueue);
 
             Theme.StyleStatusStrip(statusStrip);
             tslStatus.ForeColor = Theme.TextSecondary;
@@ -275,6 +283,21 @@ namespace RNNoise_Denoiser
             cboLang.ComboBox.BackColor = Theme.BgElevated;
             cboLang.ComboBox.ForeColor = Theme.TextPrimary;
         }
+
+        void LvQueue_DrawColumnHeader(object? sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            using var back = new SolidBrush(Theme.BgElevated);
+            using var border = new Pen(Theme.LineBorder);
+            using var fore = new SolidBrush(Theme.TextSecondary);
+            e.Graphics.FillRectangle(back, e.Bounds);
+            e.Graphics.DrawRectangle(border, e.Bounds);
+            var rect = new Rectangle(e.Bounds.X + 4, e.Bounds.Y, e.Bounds.Width - 4, e.Bounds.Height);
+            e.Graphics.DrawString(e.Header.Text, e.Font, fore, rect, new StringFormat { LineAlignment = StringAlignment.Center });
+        }
+
+        void LvQueue_DrawItem(object? sender, DrawListViewItemEventArgs e) => e.DrawDefault = true;
+
+        void LvQueue_DrawSubItem(object? sender, DrawListViewSubItemEventArgs e) => e.DrawDefault = true;
 
         void BuildContextMenu()
         {
