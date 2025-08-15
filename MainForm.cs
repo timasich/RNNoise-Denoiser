@@ -92,6 +92,25 @@ namespace RNNoise_Denoiser
             btnStart.Click += async (s, e) => await StartAsync();
             btnCancel.Click += (s, e) => _cts?.Cancel();
             FormClosing += (s, e) => SaveSettingsFromUi();
+
+            lvQueue.DoubleClick += (s, e) =>
+            {
+                if (lvQueue.SelectedItems.Count == 0) return;
+                var qi = (QueueItem)lvQueue.SelectedItems[0].Tag!;
+                if (string.IsNullOrWhiteSpace(qi.Output)) return;
+                try
+                {
+                    if (File.Exists(qi.Output))
+                        Process.Start("explorer.exe", $"/select,\"{qi.Output}\"");
+                    else
+                    {
+                        var dir = Path.GetDirectoryName(qi.Output);
+                        if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                            Process.Start("explorer.exe", dir);
+                    }
+                }
+                catch { }
+            };
         }
 
         void LoadSettingsToUi()
@@ -171,15 +190,18 @@ namespace RNNoise_Denoiser
                     bool hasVideo = await ProbeHasVideoAsync(qi.Input);
 
                     it.SubItems[1].Text = "FFmpeg";
-                    var (ok, err) = await RunFfmpegAsync(qi.Input, output, hasVideo, duration, p =>
-                    {
-                        BeginInvoke(new Action(() => it.SubItems[2].Text = p));
-                    }, _cts.Token);
+                    var sw = Stopwatch.StartNew();
+                    var (ok, err) = await RunFfmpegAsync(qi.Input, output, hasVideo, duration,
+                    p => BeginInvoke(new Action(() => it.SubItems[2].Text = p)),
+                        rem => BeginInvoke(new Action(() => tslStatus.Text = $"Осталось {rem:hh\\:mm\\:ss}")),
+                        _cts.Token);
+                    sw.Stop();
 
                     BeginInvoke(new Action(() =>
                     {
                         it.SubItems[1].Text = ok ? "Готово" : ("Ошибка: " + err);
                         if (ok) it.SubItems[2].Text = "100%";
+                        tslStatus.Text = ok ? $"Время: {sw.Elapsed:hh\\:mm\\:ss}" : "Готов";
                     }));
                 }
             }
@@ -289,7 +311,7 @@ namespace RNNoise_Denoiser
 
         async Task<(bool ok, string err)> RunFfmpegAsync(
             string input, string output, bool hasVideo, double? duration,
-            Action<string> reportProgress, CancellationToken ct)
+            Action<string> reportProgress, Action<TimeSpan> reportRemaining, CancellationToken ct)
         {
             string ffmpeg = Path.Combine(txtFfmpeg.Text.Trim(), "ffmpeg.exe");
             string model = txtModel.Text.Trim();
@@ -351,6 +373,8 @@ namespace RNNoise_Denoiser
                             double sec = h * 3600 + mi * 60 + s;
                             double pct = Math.Max(0, Math.Min(100, (sec / duration.Value) * 100.0));
                             reportProgress($"{pct:0}%");
+                            var remain = duration.Value - sec;
+                            if (remain >= 0) reportRemaining(TimeSpan.FromSeconds(remain));
                         }
                     }
                 }, ct);

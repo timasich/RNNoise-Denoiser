@@ -201,9 +201,9 @@ namespace RNNoise_Denoiser
             chkCopyVideo = new CheckBox { Text = "Вкл", Name = "chkCopyVideo", Checked = true, AutoSize = true, Anchor = AnchorStyles.Left };
             rightGrid.Controls.Add(chkCopyVideo, 1, 3);
 
-            // Помещаем rightGrid в правую колонку и растягиваем по первым трём строкам
+            // Помещаем rightGrid в правую колонку и растягиваем по первым четырем строкам
             tableLayout.Controls.Add(rightGrid, 3, 0);
-            tableLayout.SetRowSpan(rightGrid, 3);
+            tableLayout.SetRowSpan(rightGrid, 4);
 
             // ---- Row 3: кнопки слева ----
             var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 6, 0, 0) };
