@@ -144,7 +144,23 @@ Publishing: dotnet publish -c Release -r win-x64 --self-contained false -p:Publi
 
 🔐 Privacy
 
-Everything runs locally. No audio is uploaded anywhere.
+Everything runs locally. No audio is uploaded anywhere.\
+
+
+☕ Support the Project
+If this tool saves you time, consider supporting development:
+
+- Ko-fi: https://ko-fi.com/timasich
+- Donation Alerts: https://www.donationalerts.com/r/timasich
+
+Thank you! ❤️
+
+
+📖 Terms of Use (Summary)
+- The app runs **locally** and processes your files on your machine.
+- It uses **FFmpeg** and external **RNNoise models**. You are responsible for complying with their licenses.
+- Provided **“as is”**, without warranties or liability. Use at your own risk.
+- The project **does not distribute** FFmpeg or RNNoise models; you set paths yourself.
 
 
 📜 License
