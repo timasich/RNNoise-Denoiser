@@ -22,6 +22,14 @@ namespace RNNoise_Denoiser
 
         static readonly string[] VideoExts = { ".mp4", ".mov", ".mkv", ".m4v", ".avi", ".webm" };
         static readonly string[] AudioExts = { ".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg" };
+        static readonly Dictionary<string, DenoiseProfile> DefaultPresets = new()
+        {
+            ["Soft"] = new DenoiseProfile { Mix = 0.9 },
+            ["Std"] = new DenoiseProfile { Mix = 0.85 },
+            ["Aggressive"] = new DenoiseProfile { Mix = 0.7, LowpassHz = 12000, HighpassHz = 80 }
+        };
+
+        static string ModelPathForFfmpeg(string path) => path.Replace("\\", "/").Replace(":", "\\:");
 
         public MainForm()
         {
@@ -62,6 +70,9 @@ namespace RNNoise_Denoiser
             LoadSettingsToUi();
             WireEvents();
             ApplyLocalization();
+            LoadPresetsToUi();
+            SelectPresetFromProfile(_settings.Profile);
+            ShowReadmeIfNeeded();
 
             AllowDrop = true;
             DragEnter += (s, e) => { if (e.Data!.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy; };
@@ -103,6 +114,8 @@ namespace RNNoise_Denoiser
                     EnqueueFiles(files);
                 }
             };
+            btnCheckEnv.Click += (s, e) => CheckEnvironment();
+            btnPreview.Click += async (s, e) => await PreviewAsync();
             btnStart.Click += async (s, e) => await StartAsync();
             btnCancel.Click += (s, e) => _cts?.Cancel();
             FormClosing += (s, e) => SaveSettingsFromUi();
@@ -136,6 +149,15 @@ namespace RNNoise_Denoiser
                 }
                 catch { }
             };
+            cboPreset.SelectedIndexChanged += (s, e) =>
+            {
+                if (cboPreset.SelectedItem is string name)
+                    ApplyPreset(name);
+            };
+            btnSavePreset.Click += (s, e) => SavePreset();
+            btnRenamePreset.Click += (s, e) => RenamePreset();
+            btnDeletePreset.Click += (s, e) => DeletePreset();
+            tslMadeBy.DoubleClick += (s, e) => ShowReadme();
         }
 
         void ApplyLocalization()
@@ -157,8 +179,14 @@ namespace RNNoise_Denoiser
             chkLowpass.Text = Localizer.Tr("On");
             lblCopy.Text = Localizer.Tr("Copy video:");
             chkCopyVideo.Text = Localizer.Tr("On");
+            lblPreset.Text = Localizer.Tr("Preset:");
+            btnSavePreset.Text = Localizer.Tr("Save");
+            btnRenamePreset.Text = Localizer.Tr("Rename");
+            btnDeletePreset.Text = Localizer.Tr("Delete");
             btnAddFiles.Text = Localizer.Tr("Add files");
             btnAddFolder.Text = Localizer.Tr("Add folder");
+            btnCheckEnv.Text = Localizer.Tr("Check env");
+            btnPreview.Text = Localizer.Tr("Preview");
             btnStart.Text = Localizer.Tr("Start");
             btnCancel.Text = Localizer.Tr("Cancel");
             chFile.Text = Localizer.Tr("File");
@@ -195,6 +223,8 @@ namespace RNNoise_Denoiser
             _tip.SetToolTip(chkCopyVideo, Localizer.Tr("Do not re-encode video, replace audio only"));
             _tip.SetToolTip(btnAddFiles, Localizer.Tr("Add files to queue"));
             _tip.SetToolTip(btnAddFolder, Localizer.Tr("Add all supported files from folder"));
+            _tip.SetToolTip(btnCheckEnv, Localizer.Tr("Check required tools"));
+            _tip.SetToolTip(btnPreview, Localizer.Tr("Preview selected file"));
             _tip.SetToolTip(btnStart, Localizer.Tr("Start processing selected files"));
             _tip.SetToolTip(btnCancel, Localizer.Tr("Cancel current processing"));
 
@@ -469,15 +499,8 @@ namespace RNNoise_Denoiser
             Action<string> reportProgress, Action<TimeSpan> reportRemaining, CancellationToken ct)
         {
             string ffmpeg = Path.Combine(txtFfmpeg.Text.Trim(), "ffmpeg.exe");
-            string model = txtModel.Text.Trim();
 
-            var filters = new List<string>();
-            if (chkHighpass.Checked) filters.Add($"highpass=f={(int)numHighpass.Value}");
-            if (chkLowpass.Checked) filters.Add($"lowpass=f={(int)numLowpass.Value}");
-            filters.Add("aresample=48000");
-            filters.Add($"arnndn=m='{ModelPathForFfmpeg(model)}':mix={((double)numMix.Value).ToString(CultureInfo.InvariantCulture)}");
-            if (chkSpeechNorm.Checked) filters.Add("speechnorm=e=6");
-            string filterChain = string.Join(',', filters);
+            string filterChain = BuildFilterChain();
 
             var ext = Path.GetExtension(input).ToLowerInvariant();
             var (aCodec, aBr) = ResolveAudioCodec(ext);
@@ -546,15 +569,229 @@ namespace RNNoise_Denoiser
             {
                 return (false, ex.Message);
             }
-            static string ModelPathForFfmpeg(string path)
-            {
-                // Replace backslashes with forward slashes and escape colon
-                return path.Replace("\\", "/").Replace(":", "\\:");
-            }
 
         }
 
         static string EscapeForFilter(string path) => path.Replace("\\", "\\\\");
+
+        string BuildFilterChain()
+        {
+            var filters = new List<string>();
+            if (chkHighpass.Checked) filters.Add($"highpass=f={(int)numHighpass.Value}");
+            if (chkLowpass.Checked) filters.Add($"lowpass=f={(int)numLowpass.Value}");
+            filters.Add("aresample=48000");
+            filters.Add($"arnndn=m='{ModelPathForFfmpeg(txtModel.Text.Trim())}':mix={((double)numMix.Value).ToString(CultureInfo.InvariantCulture)}");
+            if (chkSpeechNorm.Checked) filters.Add("speechnorm=e=6");
+            return string.Join(',', filters);
+        }
+
+        async Task PreviewAsync()
+        {
+            if (lvQueue.SelectedItems.Count == 0)
+            {
+                MessageBox.Show(this, "Select a file in queue", "Preview", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            string ffplay = Path.Combine(txtFfmpeg.Text.Trim(), "ffplay.exe");
+            if (!File.Exists(ffplay))
+            {
+                MessageBox.Show(this, "ffplay.exe not found", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            if (!File.Exists(txtModel.Text.Trim()))
+            {
+                MessageBox.Show(this, Localizer.Tr(".rnnn model file not found."), Localizer.Tr("Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            var qi = (QueueItem)lvQueue.SelectedItems[0].Tag!;
+            string filterChain = BuildFilterChain();
+            var psi = new ProcessStartInfo
+            {
+                FileName = ffplay,
+                Arguments = $"-autoexit -hide_banner -i \"{qi.Input}\" -af {filterChain}",
+                UseShellExecute = false,
+                CreateNoWindow = false,
+            };
+            try { Process.Start(psi); } catch { }
+            await Task.CompletedTask;
+        }
+
+        void CheckEnvironment()
+        {
+            string ffmpeg = Path.Combine(txtFfmpeg.Text.Trim(), "ffmpeg.exe");
+            string ffprobe = Path.Combine(txtFfmpeg.Text.Trim(), "ffprobe.exe");
+            bool ffmpegOk = File.Exists(ffmpeg);
+            bool ffprobeOk = File.Exists(ffprobe);
+            bool arnndnOk = false;
+            if (ffmpegOk)
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = ffmpeg,
+                        Arguments = "-hide_banner -filters",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true,
+                        StandardOutputEncoding = Encoding.UTF8,
+                        StandardErrorEncoding = Encoding.UTF8
+                    };
+                    using var p = Process.Start(psi)!;
+                    string txt = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit();
+                    arnndnOk = txt.Contains("arnndn");
+                }
+                catch { }
+            }
+            bool modelOk = File.Exists(txtModel.Text.Trim());
+            var sb = new StringBuilder();
+            sb.AppendLine($"ffmpeg: {(ffmpegOk ? "OK" : "Missing")}");
+            sb.AppendLine($"ffprobe: {(ffprobeOk ? "OK" : "Missing")}");
+            sb.AppendLine($"arnndn filter: {(arnndnOk ? "OK" : "Missing")}");
+            sb.AppendLine($"model: {(modelOk ? "OK" : "Missing")}");
+            MessageBox.Show(this, sb.ToString(), "Environment", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        void LoadPresetsToUi()
+        {
+            cboPreset.Items.Clear();
+            foreach (var kv in DefaultPresets)
+                cboPreset.Items.Add(kv.Key);
+            foreach (var kv in _settings.CustomPresets)
+                cboPreset.Items.Add(kv.Key);
+        }
+
+        void ApplyPreset(string name)
+        {
+            if (DefaultPresets.TryGetValue(name, out var prof) || _settings.CustomPresets.TryGetValue(name, out prof))
+                ApplyProfile(prof);
+        }
+
+        void ApplyProfile(DenoiseProfile p)
+        {
+            numMix.Value = (decimal)p.Mix;
+            if (p.HighpassHz.HasValue)
+            {
+                chkHighpass.Checked = true;
+                numHighpass.Value = p.HighpassHz.Value;
+            }
+            else chkHighpass.Checked = false;
+            if (p.LowpassHz.HasValue)
+            {
+                chkLowpass.Checked = true;
+                numLowpass.Value = p.LowpassHz.Value;
+            }
+            else chkLowpass.Checked = false;
+            chkSpeechNorm.Checked = p.SpeechNorm;
+        }
+
+        DenoiseProfile BuildProfileFromUi() => new()
+        {
+            Mix = (double)numMix.Value,
+            HighpassHz = chkHighpass.Checked ? (int?)numHighpass.Value : null,
+            LowpassHz = chkLowpass.Checked ? (int?)numLowpass.Value : null,
+            SpeechNorm = chkSpeechNorm.Checked
+        };
+
+        void SavePreset()
+        {
+            var name = Prompt("Preset name:");
+            if (string.IsNullOrWhiteSpace(name)) return;
+            if (DefaultPresets.ContainsKey(name) || _settings.CustomPresets.ContainsKey(name))
+            {
+                MessageBox.Show(this, "Preset exists", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            _settings.CustomPresets[name] = BuildProfileFromUi();
+            _settings.Save(_settingsPath);
+            LoadPresetsToUi();
+            cboPreset.SelectedItem = name;
+        }
+
+        void RenamePreset()
+        {
+            if (cboPreset.SelectedItem is not string oldName) return;
+            if (DefaultPresets.ContainsKey(oldName))
+            {
+                MessageBox.Show(this, "Cannot rename builtin preset", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            if (!_settings.CustomPresets.TryGetValue(oldName, out var prof)) return;
+            var newName = Prompt("Preset name:", oldName);
+            if (string.IsNullOrWhiteSpace(newName) || newName == oldName) return;
+            if (DefaultPresets.ContainsKey(newName) || _settings.CustomPresets.ContainsKey(newName))
+            {
+                MessageBox.Show(this, "Preset exists", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            _settings.CustomPresets.Remove(oldName);
+            _settings.CustomPresets[newName] = prof;
+            _settings.Save(_settingsPath);
+            LoadPresetsToUi();
+            cboPreset.SelectedItem = newName;
+        }
+
+        void DeletePreset()
+        {
+            if (cboPreset.SelectedItem is not string name) return;
+            if (DefaultPresets.ContainsKey(name))
+            {
+                MessageBox.Show(this, "Cannot delete builtin preset", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            if (_settings.CustomPresets.Remove(name))
+            {
+                _settings.Save(_settingsPath);
+                LoadPresetsToUi();
+            }
+        }
+
+        bool ProfilesEqual(DenoiseProfile a, DenoiseProfile b) =>
+            a.Mix == b.Mix && a.HighpassHz == b.HighpassHz && a.LowpassHz == b.LowpassHz && a.SpeechNorm == b.SpeechNorm;
+
+        void SelectPresetFromProfile(DenoiseProfile p)
+        {
+            foreach (var kv in DefaultPresets.Concat(_settings.CustomPresets))
+            {
+                if (ProfilesEqual(p, kv.Value))
+                {
+                    cboPreset.SelectedItem = kv.Key;
+                    return;
+                }
+            }
+            cboPreset.SelectedIndex = -1;
+        }
+
+        void ShowReadmeIfNeeded()
+        {
+            if (_settings.ShowReadme) ShowReadme();
+        }
+
+        void ShowReadme()
+        {
+            using var frm = new ReadmeForm();
+            if (frm.ShowDialog(this) == DialogResult.OK && frm.DontShow)
+            {
+                _settings.ShowReadme = false;
+                _settings.Save(_settingsPath);
+            }
+        }
+
+        string? Prompt(string text, string defaultValue = "")
+        {
+            using var form = new Form { Width = 400, Height = 140, FormBorderStyle = FormBorderStyle.FixedDialog, Text = text, StartPosition = FormStartPosition.CenterParent };
+            var tb = new TextBox { Left = 10, Top = 10, Width = 360, Text = defaultValue };
+            var ok = new Button { Text = "OK", Left = 210, Width = 80, Top = 40, DialogResult = DialogResult.OK };
+            var cancel = new Button { Text = "Cancel", Left = 300, Width = 80, Top = 40, DialogResult = DialogResult.Cancel };
+            form.Controls.Add(tb);
+            form.Controls.Add(ok);
+            form.Controls.Add(cancel);
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+            return form.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
+        }
 
         private void chkHighpass_CheckedChanged(object sender, EventArgs e)
         {
@@ -588,6 +825,8 @@ namespace RNNoise_Denoiser
         public string AudioBitrate { get; set; } = "192k";
         public bool CopyVideo { get; set; } = true;
         public string Language { get; set; } = "";
+        public bool ShowReadme { get; set; } = true;
+        public Dictionary<string, DenoiseProfile> CustomPresets { get; set; } = new();
 
         public static AppSettings Load(string path)
         {
@@ -597,7 +836,11 @@ namespace RNNoise_Denoiser
                 {
                     var s = File.ReadAllText(path, Encoding.UTF8);
                     var obj = JsonSerializer.Deserialize<AppSettings>(s);
-                    if (obj != null) return obj;
+                    if (obj != null)
+                    {
+                        obj.CustomPresets ??= new();
+                        return obj;
+                    }
                 }
             }
             catch { }

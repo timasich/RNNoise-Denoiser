@@ -1,4 +1,6 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace RNNoise_Denoiser
@@ -41,8 +43,16 @@ namespace RNNoise_Denoiser
 
         private Button btnAddFiles;
         private Button btnAddFolder;
+        private Button btnCheckEnv;
+        private Button btnPreview;
         private Button btnStart;
         private Button btnCancel;
+
+        private Label lblPreset;
+        private ComboBox cboPreset;
+        private Button btnSavePreset;
+        private Button btnRenamePreset;
+        private Button btnDeletePreset;
 
         private ListView lvQueue;
         private ColumnHeader chCheck;
@@ -75,6 +85,8 @@ namespace RNNoise_Denoiser
             Name = "MainForm";
             Text = "RNNoise Denoiser";
             StartPosition = FormStartPosition.CenterScreen;
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "RNNoise Denoiser Icon.ico");
+            if (File.Exists(iconPath)) Icon = new Icon(iconPath);
 
             // ---- Top Panel ----
             panelTop = new Panel
@@ -141,7 +153,7 @@ namespace RNNoise_Denoiser
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 4,
-                RowCount = 4,
+                RowCount = 5,
                 Name = "rightGrid",
                 Margin = new Padding(10, 0, 0, 0)
             };
@@ -154,25 +166,41 @@ namespace RNNoise_Denoiser
             rightGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             rightGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             rightGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            rightGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
-            // row0: Кодек/Битрейт
+            // row0: Preset selection
+            lblPreset = new Label { Text = "Preset:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblPreset" };
+            rightGrid.Controls.Add(lblPreset, 0, 0);
+            cboPreset = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Name = "cboPreset", Anchor = AnchorStyles.Left | AnchorStyles.Right };
+            rightGrid.Controls.Add(cboPreset, 1, 0);
+            var presetPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
+            btnSavePreset = new Button { Text = "Save", Name = "btnSavePreset" };
+            btnRenamePreset = new Button { Text = "Rename", Name = "btnRenamePreset" };
+            btnDeletePreset = new Button { Text = "Delete", Name = "btnDeletePreset" };
+            presetPanel.Controls.Add(btnSavePreset);
+            presetPanel.Controls.Add(btnRenamePreset);
+            presetPanel.Controls.Add(btnDeletePreset);
+            rightGrid.Controls.Add(presetPanel, 2, 0);
+            rightGrid.SetColumnSpan(presetPanel, 2);
+
+            // row1: Кодек/Битрейт
             lblCodec = new Label { Text = "Audio codec:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblCodec" };
-            rightGrid.Controls.Add(lblCodec, 0, 0);
+            rightGrid.Controls.Add(lblCodec, 0, 1);
             cboAudioCodec = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Name = "cboAudioCodec", Anchor = AnchorStyles.Left | AnchorStyles.Right };
             cboAudioCodec.Items.AddRange(new object[] { "aac", "libmp3lame", "pcm_s16le" });
             cboAudioCodec.SelectedIndex = 0;
-            rightGrid.Controls.Add(cboAudioCodec, 1, 0);
+            rightGrid.Controls.Add(cboAudioCodec, 1, 1);
 
             lblBr = new Label { Text = "Bitrate:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblBr" };
-            rightGrid.Controls.Add(lblBr, 2, 0);
+            rightGrid.Controls.Add(lblBr, 2, 1);
             cboBitrate = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Name = "cboBitrate", Anchor = AnchorStyles.Left | AnchorStyles.Right };
             cboBitrate.Items.AddRange(new object[] { "128k", "160k", "192k", "256k", "320k" });
             cboBitrate.SelectedIndex = 2;
-            rightGrid.Controls.Add(cboBitrate, 3, 0);
+            rightGrid.Controls.Add(cboBitrate, 3, 1);
 
-            // row1: mix / Highpass
+            // row2: mix / Highpass
             lblMix = new Label { Text = "mix (0-1):", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblMix" };
-            rightGrid.Controls.Add(lblMix, 0, 1);
+            rightGrid.Controls.Add(lblMix, 0, 2);
             numMix = new NumericUpDown
             {
                 DecimalPlaces = 2,
@@ -183,37 +211,37 @@ namespace RNNoise_Denoiser
                 Name = "numMix",
                 Anchor = AnchorStyles.Left
             };
-            rightGrid.Controls.Add(numMix, 1, 1);
+            rightGrid.Controls.Add(numMix, 1, 2);
 
             lblHp = new Label { Text = "Highpass (Hz):", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblHp" };
-            rightGrid.Controls.Add(lblHp, 2, 1);
+            rightGrid.Controls.Add(lblHp, 2, 2);
             var hpPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
             chkHighpass = new CheckBox { Text = "On", Name = "chkHighpass", AutoSize = true };
             numHighpass = new NumericUpDown { Minimum = 20, Maximum = 300, Value = 80, Enabled = false, Name = "numHighpass", Width = 80 };
             hpPanel.Controls.Add(chkHighpass);
             hpPanel.Controls.Add(numHighpass);
-            rightGrid.Controls.Add(hpPanel, 3, 1);
+            rightGrid.Controls.Add(hpPanel, 3, 2);
 
-            // row2: SpeechNorm / Lowpass
+            // row3: SpeechNorm / Lowpass
             lblSn = new Label { Text = "SpeechNorm:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblSn" };
-            rightGrid.Controls.Add(lblSn, 0, 2);
+            rightGrid.Controls.Add(lblSn, 0, 3);
             chkSpeechNorm = new CheckBox { Text = "On", Name = "chkSpeechNorm", AutoSize = true, Anchor = AnchorStyles.Left };
-            rightGrid.Controls.Add(chkSpeechNorm, 1, 2);
+            rightGrid.Controls.Add(chkSpeechNorm, 1, 3);
 
             lblLp = new Label { Text = "Lowpass (Hz):", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblLp" };
-            rightGrid.Controls.Add(lblLp, 2, 2);
+            rightGrid.Controls.Add(lblLp, 2, 3);
             var lpPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
             chkLowpass = new CheckBox { Text = "On", Name = "chkLowpass", AutoSize = true };
             numLowpass = new NumericUpDown { Minimum = 4000, Maximum = 20000, Value = 12000, Enabled = false, Name = "numLowpass", Width = 80 };
             lpPanel.Controls.Add(chkLowpass);
             lpPanel.Controls.Add(numLowpass);
-            rightGrid.Controls.Add(lpPanel, 3, 2);
+            rightGrid.Controls.Add(lpPanel, 3, 3);
 
-            // row3: Copy Video
+            // row4: Copy Video
             lblCopy = new Label { Text = "Copy video:", AutoSize = true, Anchor = AnchorStyles.Left, Name = "lblCopy" };
-            rightGrid.Controls.Add(lblCopy, 0, 3);
+            rightGrid.Controls.Add(lblCopy, 0, 4);
             chkCopyVideo = new CheckBox { Text = "On", Name = "chkCopyVideo", Checked = true, AutoSize = true, Anchor = AnchorStyles.Left };
-            rightGrid.Controls.Add(chkCopyVideo, 1, 3);
+            rightGrid.Controls.Add(chkCopyVideo, 1, 4);
 
             // Помещаем rightGrid в правую колонку и растягиваем по первым четырем строкам
             tableLayout.Controls.Add(rightGrid, 3, 0);
@@ -223,10 +251,14 @@ namespace RNNoise_Denoiser
             var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 6, 0, 0) };
             btnAddFiles = new Button { Text = "Add files", Name = "btnAddFiles" };
             btnAddFolder = new Button { Text = "Add folder", Name = "btnAddFolder" };
+            btnCheckEnv = new Button { Text = "Check env", Name = "btnCheckEnv" };
+            btnPreview = new Button { Text = "Preview", Name = "btnPreview" };
             btnStart = new Button { Text = "Start", Name = "btnStart" };
             btnCancel = new Button { Text = "Cancel", Name = "btnCancel", Enabled = false };
             btnPanel.Controls.Add(btnAddFiles);
             btnPanel.Controls.Add(btnAddFolder);
+            btnPanel.Controls.Add(btnCheckEnv);
+            btnPanel.Controls.Add(btnPreview);
             btnPanel.Controls.Add(btnStart);
             btnPanel.Controls.Add(btnCancel);
             tableLayout.Controls.Add(btnPanel, 1, 3);
