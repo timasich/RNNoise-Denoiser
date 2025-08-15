@@ -41,6 +41,12 @@ namespace RNNoise_Denoiser
             _settingsPath = Path.Combine(dir, "settings.json");
             _settings = AppSettings.Load(_settingsPath);
 
+            if (string.IsNullOrWhiteSpace(_settings.Language))
+            {
+                _settings.Language = "en";
+                _settings.Save(_settingsPath);
+            }
+
             var langItem = Localizer.Langs.FirstOrDefault(l => l.Code == _settings.Language) ?? Localizer.Langs[0];
             Localizer.Set(langItem.Code);
             cboLang.SelectedItem = langItem;
@@ -581,7 +587,7 @@ namespace RNNoise_Denoiser
         public string AudioCodec { get; set; } = "aac";
         public string AudioBitrate { get; set; } = "192k";
         public bool CopyVideo { get; set; } = true;
-        public string Language { get; set; } = "en";
+        public string Language { get; set; } = "";
 
         public static AppSettings Load(string path)
         {
@@ -651,79 +657,24 @@ namespace RNNoise_Denoiser
             new LangItem("sr", "Srpski/Hrvatski/Bosanski/Crnogorski"),
         };
 
-        static readonly Dictionary<string, Dictionary<string, string>> Data = new()
+        static Dictionary<string, Dictionary<string, string>> Data = new();
+
+        static Localizer()
         {
-            ["en"] = new(),
-            ["ru"] = new()
+            try
             {
-                ["FFmpeg bin:"] = "Папка ffmpeg:",
-                ["Browse"] = "Обзор",
-                ["RNNoise .rnnn:"] = "Модель RNNoise (.rnnn):",
-                ["Output folder:"] = "Папка вывода:",
-                ["Audio codec:"] = "Кодек аудио:",
-                ["Bitrate:"] = "Битрейт:",
-                ["mix (0-1):"] = "mix (0–1):",
-                ["Highpass (Hz):"] = "Highpass (Гц):",
-                ["Lowpass (Hz):"] = "Lowpass (Гц):",
-                ["SpeechNorm:"] = "SpeechNorm:",
-                ["Copy video:"] = "Копировать видео:",
-                ["On"] = "Вкл",
-                ["Add files"] = "Добавить файлы",
-                ["Add folder"] = "Добавить папку",
-                ["Start"] = "Старт",
-                ["Cancel"] = "Отмена",
-                ["File"] = "Файл",
-                ["Status"] = "Статус",
-                ["Progress"] = "Прогресс",
-                ["Time"] = "Время",
-                ["Output"] = "Выход",
-                ["Ready"] = "Готов",
-                ["Processing..."] = "Обработка…",
-                ["Remaining {0}"] = "Осталось {0}",
-                ["Time: {0}"] = "Время: {0}",
-                ["Queued"] = "В очереди",
-                ["Preparing"] = "Подготовка",
-                ["Done"] = "Готово",
-                ["Error:"] = "Ошибка:",
-                ["Added files: {0}"] = "Добавлено файлов: {0}",
-                ["Remove from queue"] = "Удалить из очереди",
-                ["Duplicate"] = "Дублировать",
-                ["Open folder with original"] = "Открыть папку с оригиналом",
-                ["Open output folder"] = "Открыть папку вывода",
-                ["Mark for cleanup"] = "Отметить для очистки",
-                ["Unmark from cleanup"] = "Снять из очистки",
-                ["ffmpeg.exe/ffprobe.exe not found. Specify path to bin folder."] = "Не найден ffmpeg.exe/ffprobe.exe. Укажи путь к папке bin.",
-                [".rnnn model file not found."] = "Не найден файл модели .rnnn.",
-                ["Specify an existing output folder."] = "Укажи существующую папку вывода.",
-                ["Error"] = "Ошибка",
-                ["Folder with ffmpeg.exe and ffprobe.exe"] = "Папка с ffmpeg.exe и ffprobe.exe",
-                ["Select ffmpeg/bin folder"] = "Выбрать папку ffmpeg/bin",
-                ["RNNoise model file (.rnnn)"] = "Файл модели RNNoise (.rnnn)",
-                ["Select RNNoise model file"] = "Выбрать файл модели RNNoise",
-                ["Folder to save processed files"] = "Папка для сохранения обработанных файлов",
-                ["Select output folder"] = "Выбрать папку вывода",
-                ["Audio codec of output file"] = "Кодек аудио выходного файла",
-                ["Audio bitrate: higher = better quality but larger file"] = "Битрейт аудио: выше — лучше качество, но больше размер файла",
-                ["Noise reduction amount: 0 = no processing, 1 = maximum reduction"] = "Степень шумоподавления: 0 — без обработки, 1 — максимальное подавление",
-                ["Removes frequencies below specified value, helps remove hum"] = "Удаляет частоты ниже указанной, помогает убрать гул",
-                ["High-pass filter cutoff frequency (Hz)"] = "Граница фильтра высоких частот (Гц)",
-                ["Removes frequencies above specified value, suppresses HF noise"] = "Удаляет частоты выше указанной, подавляет ВЧ-шумы",
-                ["Low-pass filter cutoff frequency (Hz)"] = "Граница фильтра низких частот (Гц)",
-                ["Normalizes speech loudness"] = "Выравнивает громкость речи",
-                ["Do not re-encode video, replace audio only"] = "Не перекодировать видео, только заменять аудио",
-                ["Add files to queue"] = "Добавить файлы в очередь",
-                ["Add all supported files from folder"] = "Добавить все поддерживаемые файлы из папки",
-                ["Start processing selected files"] = "Начать обработку отмеченных файлов",
-                ["Cancel current processing"] = "Отменить текущую обработку",
-                ["Video/Audio"] = "Видео/Аудио",
-                ["All files"] = "Все файлы",
-                ["Folder with ffmpeg/bin (ffmpeg.exe, ffprobe.exe)"] = "Папка с ffmpeg/bin (ffmpeg.exe, ffprobe.exe)",
-                ["RNNoise model file"] = "Файл модели RNNoise",
-                ["Folder with files"] = "Папка с файлами",
-                ["Output folder"] = "Папка вывода",
-                ["Cancelled"] = "Отменено"
+                var path = Path.Combine(AppContext.BaseDirectory, "translations.json");
+                if (File.Exists(path))
+                {
+                    var json = File.ReadAllText(path);
+                    Data = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(json) ?? new();
+                }
             }
-        };
+            catch
+            {
+                Data = new();
+            }
+        }
 
         public static void Set(string code) => Current = code;
         public static string Tr(string key)
