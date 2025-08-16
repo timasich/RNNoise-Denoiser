@@ -147,8 +147,8 @@ Publishing: dotnet publish -c Release -r win-x64 --self-contained false -p:Publi
 Everything runs locally. No audio is uploaded anywhere.\
 
 
-☕ Support the Project
-If this tool saves you time, consider supporting development:
+☕ Support the Developer
+If this tool saves you time, you can thank me:
 
 - Ko-fi: https://ko-fi.com/timasich
 - Donation Alerts: https://www.donationalerts.com/r/timasich
