@@ -289,7 +289,13 @@ namespace RNNoise_Denoiser
             statusStrip.Items.Add(tslStatus);
             cboLang = new ToolStripComboBox { Name = "cboLang", Alignment = ToolStripItemAlignment.Right, DropDownStyle = ComboBoxStyle.DropDownList };
             statusStrip.Items.Add(cboLang);
-            tslMadeBy = new ToolStripStatusLabel("Made by timasich") { Name = "tslMadeBy", Alignment = ToolStripItemAlignment.Right };
+            tslMadeBy = new ToolStripStatusLabel("Made by timasich")
+            {
+                Name = "tslMadeBy",
+                Alignment = ToolStripItemAlignment.Right,
+                IsLink = true,
+                DoubleClickEnabled = true
+            };
             statusStrip.Items.Add(tslMadeBy);
             Controls.Add(statusStrip);
         }
