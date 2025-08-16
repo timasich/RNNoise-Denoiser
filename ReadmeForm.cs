@@ -8,7 +8,11 @@ namespace RNNoise_Denoiser
     public class ReadmeForm : Form
     {
         readonly CheckBox _chkDontShow;
-        public bool DontShow => _chkDontShow.Checked;
+        public bool DontShow
+        {
+            get => _chkDontShow.Checked;
+            set => _chkDontShow.Checked = value;
+        }
         public ReadmeForm()
         {
             Text = "README";

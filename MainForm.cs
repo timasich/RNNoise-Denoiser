@@ -74,7 +74,6 @@ namespace RNNoise_Denoiser
             LoadPresetsToUi();
             SelectPresetFromProfile(_settings.Profile);
             ApplyTheme();
-            ShowReadmeIfNeeded();
 
             AllowDrop = true;
             DragEnter += (s, e) => { if (e.Data!.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy; };
@@ -159,7 +158,8 @@ namespace RNNoise_Denoiser
             btnSavePreset.Click += (s, e) => SavePreset();
             btnRenamePreset.Click += (s, e) => RenamePreset();
             btnDeletePreset.Click += (s, e) => DeletePreset();
-            tslMadeBy.DoubleClick += (s, e) => ShowReadme();
+            tslMadeBy.Click += (s, e) => ShowReadme();
+            Shown += (s, e) => ShowReadmeIfNeeded();
         }
 
         void ApplyLocalization()
@@ -279,7 +279,7 @@ namespace RNNoise_Denoiser
 
             Theme.StyleStatusStrip(statusStrip);
             tslStatus.ForeColor = Theme.TextSecondary;
-            tslMadeBy.ForeColor = Theme.TextSecondary;
+            tslMadeBy.ForeColor = Color.White;
             cboLang.ComboBox.BackColor = Theme.BgElevated;
             cboLang.ComboBox.ForeColor = Theme.TextPrimary;
         }
@@ -844,10 +844,10 @@ namespace RNNoise_Denoiser
 
         void ShowReadme()
         {
-            using var frm = new ReadmeForm();
-            if (frm.ShowDialog(this) == DialogResult.OK && frm.DontShow)
+            using var frm = new ReadmeForm { DontShow = !_settings.ShowReadme };
+            if (frm.ShowDialog(this) == DialogResult.OK)
             {
-                _settings.ShowReadme = false;
+                _settings.ShowReadme = !frm.DontShow;
                 _settings.Save(_settingsPath);
             }
         }
