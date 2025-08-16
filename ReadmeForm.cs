@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
+using System.Drawing;
 
 namespace RNNoise_Denoiser
 {
@@ -16,6 +17,8 @@ namespace RNNoise_Denoiser
             StartPosition = FormStartPosition.CenterParent;
 
             Theme.Apply(this);
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "RNNoise Denoiser Icon.ico");
+            if (File.Exists(iconPath)) Icon = new Icon(iconPath);
 
             var box = new TextBox
             {

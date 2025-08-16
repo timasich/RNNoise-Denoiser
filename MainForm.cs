@@ -297,7 +297,12 @@ namespace RNNoise_Denoiser
 
         void LvQueue_DrawItem(object? sender, DrawListViewItemEventArgs e) => e.DrawDefault = true;
 
-        void LvQueue_DrawSubItem(object? sender, DrawListViewSubItemEventArgs e) => e.DrawDefault = true;
+        void LvQueue_DrawSubItem(object? sender, DrawListViewSubItemEventArgs e)
+        {
+            e.DrawBackground();
+            TextRenderer.DrawText(e.Graphics, e.SubItem.Text, lvQueue.Font, e.Bounds,
+                Theme.TextPrimary, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+        }
 
         void BuildContextMenu()
         {
