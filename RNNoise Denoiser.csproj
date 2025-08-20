@@ -18,11 +18,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="App.axaml" />
-    <AvaloniaResource Include="MainWindow.axaml" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Compile Update="App.axaml.cs">
       <DependentUpon>App.axaml</DependentUpon>
     </Compile>
