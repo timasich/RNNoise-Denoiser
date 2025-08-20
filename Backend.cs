@@ -19,7 +19,7 @@ public sealed class AppSettings
 {
     public string FfmpegBinPath { get; set; } = "";
     public string ModelPath { get; set; } = "";
-    public string OutputFolder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+    public string OutputFolder { get; set; } = GetDefaultOutputFolder();
     public DenoiseProfile Profile { get; set; } = new();
     public string AudioCodec { get; set; } = "aac";
     public string AudioBitrate { get; set; } = "192k";
@@ -27,6 +27,17 @@ public sealed class AppSettings
     public string Language { get; set; } = "";
     public bool ShowReadme { get; set; } = true;
     public Dictionary<string, DenoiseProfile> CustomPresets { get; set; } = new();
+
+    public static string GetDefaultOutputFolder()
+    {
+        if (OperatingSystem.IsWindows())
+            return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        if (OperatingSystem.IsLinux())
+            return Environment.GetFolderPath(Environment.SpecialFolder.Home);
+        if (OperatingSystem.IsMacOS())
+            return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+    }
 
     public static AppSettings Load(string path)
     {

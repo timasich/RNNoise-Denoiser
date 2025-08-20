@@ -24,6 +24,9 @@
     <Compile Update="MainWindow.axaml.cs">
       <DependentUpon>MainWindow.axaml</DependentUpon>
     </Compile>
+    <Compile Update="ReadmeWindow.axaml.cs">
+      <DependentUpon>ReadmeWindow.axaml</DependentUpon>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>

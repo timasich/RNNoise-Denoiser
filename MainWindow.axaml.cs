@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Input;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -75,6 +76,12 @@ public partial class MainWindow : Window
         btnDeletePreset.Click += BtnDeletePreset_Click;
 
         dgQueue.ItemsSource = _queue;
+
+        AddHandler(DragDrop.DropEvent, OnDrop);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        tslMadeBy.PointerPressed += (_, __) => ShowReadme();
+        if (_settings.ShowReadme)
+            ShowReadme();
     }
 
     async void BtnFfmpegBrowse_Click(object? sender, RoutedEventArgs e)
@@ -221,8 +228,17 @@ public partial class MainWindow : Window
 
     void AddFilesToQueue(IEnumerable<string> files)
     {
+        Directory.CreateDirectory(txtOutput.Text);
         foreach (var f in files)
         {
+            if (Directory.Exists(f))
+            {
+                var dirFiles = Directory.GetFiles(f, "*.*", SearchOption.AllDirectories)
+                    .Where(x => _extensions.Contains(Path.GetExtension(x).ToLowerInvariant()));
+                foreach (var df in dirFiles)
+                    AddFilesToQueue(new[] { df });
+                continue;
+            }
             if (!File.Exists(f)) continue;
             var output = Path.Combine(txtOutput.Text,
                 Path.GetFileNameWithoutExtension(f) + "_denoised" + Path.GetExtension(f));
@@ -307,7 +323,7 @@ public partial class MainWindow : Window
         var filter = BuildFilter();
         try
         {
-            Process.Start(new ProcessStartInfo(ffplay, $"-i \"{item.Input}\" -af \"{filter}\"") { UseShellExecute = false });
+            Process.Start(new ProcessStartInfo(ffplay, $"-i \"{item.Input}\" -af \"{filter}\"") { UseShellExecute = true });
         }
         catch (Exception ex)
         {
@@ -332,6 +348,7 @@ public partial class MainWindow : Window
                 break;
             }
             item.Status = "Processing";
+            Directory.CreateDirectory(Path.GetDirectoryName(item.Output)!);
             var args = BuildFfmpegArgs(item.Input, item.Output);
             try
             {
@@ -436,5 +453,31 @@ public partial class MainWindow : Window
         win.Closed += (_, __) => { if (!tcs.Task.IsCompleted) tcs.SetResult(null); };
         await win.ShowDialog(this);
         return await tcs.Task;
+    }
+
+    void OnDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.Data.Contains(DataFormats.FileNames))
+            e.DragEffects = DragDropEffects.Copy;
+    }
+
+    void OnDrop(object? sender, DragEventArgs e)
+    {
+        if (e.Data.Contains(DataFormats.FileNames))
+        {
+            var files = e.Data.GetFileNames();
+            AddFilesToQueue(files);
+        }
+    }
+
+    async void ShowReadme()
+    {
+        var win = new ReadmeWindow();
+        await win.ShowDialog(this);
+        if (win.DontShowAgain)
+        {
+            _settings.ShowReadme = false;
+            _settings.Save(_settingsPath);
+        }
     }
 }
