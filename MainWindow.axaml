@@ -75,11 +75,11 @@
 
                 <!-- Mix/Highpass row -->
                 <TextBlock Grid.Row="2" Grid.Column="0" Text="mix (0-1):" VerticalAlignment="Center" Name="lblMix"/>
-                <NumericUpDown Grid.Row="2" Grid.Column="1" Name="numMix" Minimum="0" Maximum="1" Increment="0.05" Value="0.85" Width="80"/>
+                <NumericUpDown Grid.Row="2" Grid.Column="1" Name="numMix" Minimum="0" Maximum="1" Increment="0.05" Value="0.85" Width="120"/>
                 <TextBlock Grid.Row="2" Grid.Column="2" Text="Highpass (Hz):" VerticalAlignment="Center" Name="lblHp"/>
                 <StackPanel Grid.Row="2" Grid.Column="3" Orientation="Horizontal" Spacing="6">
                     <CheckBox Content="On" Name="chkHighpass"/>
-                    <NumericUpDown Name="numHighpass" Minimum="20" Maximum="300" Value="80" IsEnabled="False" Width="80"/>
+                    <NumericUpDown Name="numHighpass" Minimum="20" Maximum="300" Value="80" IsEnabled="False" Width="120"/>
                 </StackPanel>
 
                 <!-- SpeechNorm/Lowpass row -->
@@ -88,7 +88,7 @@
                 <TextBlock Grid.Row="3" Grid.Column="2" Text="Lowpass (Hz):" VerticalAlignment="Center" Name="lblLp"/>
                 <StackPanel Grid.Row="3" Grid.Column="3" Orientation="Horizontal" Spacing="6">
                     <CheckBox Content="On" Name="chkLowpass"/>
-                    <NumericUpDown Name="numLowpass" Minimum="4000" Maximum="20000" Value="12000" IsEnabled="False" Width="80"/>
+                    <NumericUpDown Name="numLowpass" Minimum="4000" Maximum="20000" Value="12000" IsEnabled="False" Width="120"/>
                 </StackPanel>
 
                 <!-- Copy Video row -->
@@ -98,7 +98,7 @@
         </Grid>
 
         <!-- Queue -->
-        <DataGrid DockPanel.Dock="Top" Grid.Row="1" Name="dgQueue" AutoGenerateColumns="False">
+        <DataGrid Grid.Row="1" Name="dgQueue" AutoGenerateColumns="False">
             <DataGrid.Columns>
                 <DataGridCheckBoxColumn Binding="{Binding IsChecked}" Width="30"/>
                 <DataGridTextColumn Header="File" Binding="{Binding Input}" Width="480"/>
