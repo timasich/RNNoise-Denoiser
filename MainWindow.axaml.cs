@@ -42,7 +42,7 @@ public partial class MainWindow : Window
         btnModelBrowse.Click += BtnModelBrowse_Click;
         btnOutputBrowse.Click += BtnOutputBrowse_Click;
 
-        dgQueue.Items = _queue;
+        dgQueue.ItemsSource = _queue;
     }
 
     async void BtnFfmpegBrowse_Click(object? sender, RoutedEventArgs e)
@@ -85,7 +85,7 @@ public partial class MainWindow : Window
             cboBitrate.Items.Add(br);
         cboBitrate.SelectedItem = _settings.AudioBitrate;
 
-        numMix.Value = _settings.Profile.Mix;
+        numMix.Value = (decimal)_settings.Profile.Mix;
         chkHighpass.IsChecked = _settings.Profile.HighpassHz.HasValue;
         numHighpass.Value = _settings.Profile.HighpassHz ?? 80;
         numHighpass.IsEnabled = chkHighpass.IsChecked == true;
@@ -103,7 +103,7 @@ public partial class MainWindow : Window
         _settings.OutputFolder = txtOutput.Text;
         _settings.AudioCodec = (string?)cboAudioCodec.SelectedItem ?? "aac";
         _settings.AudioBitrate = (string?)cboBitrate.SelectedItem ?? "192k";
-        _settings.Profile.Mix = numMix.Value ?? 0.85;
+        _settings.Profile.Mix = (double)(numMix.Value ?? 0.85m);
         _settings.Profile.HighpassHz = chkHighpass.IsChecked == true ? (int?)numHighpass.Value : null;
         _settings.Profile.LowpassHz = chkLowpass.IsChecked == true ? (int?)numLowpass.Value : null;
         _settings.Profile.SpeechNorm = chkSpeechNorm.IsChecked == true;

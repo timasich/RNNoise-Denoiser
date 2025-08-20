@@ -110,16 +110,12 @@
         </DataGrid>
 
         <!-- Status bar -->
-        <StatusBar DockPanel.Dock="Bottom" Name="statusStrip">
-            <StatusBarItem>
+        <Border DockPanel.Dock="Bottom" Name="statusStrip" Padding="4">
+            <DockPanel>
+                <ComboBox Name="cboLang" Width="120" DockPanel.Dock="Right"/>
+                <TextBlock Name="tslMadeBy" Text="Made by timasich" DockPanel.Dock="Right"/>
                 <TextBlock Name="tslStatus" Text="Ready"/>
-            </StatusBarItem>
-            <StatusBarItem HorizontalAlignment="Right">
-                <ComboBox Name="cboLang" Width="120"/>
-            </StatusBarItem>
-            <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock Name="tslMadeBy" Text="Made by timasich"/>
-            </StatusBarItem>
-        </StatusBar>
+            </DockPanel>
+        </Border>
     </DockPanel>
 </Window>
