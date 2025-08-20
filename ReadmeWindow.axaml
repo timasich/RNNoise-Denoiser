@@ -1,0 +1,14 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RNNoise_Denoiser.ReadmeWindow"
+        Width="640" Height="480" Title="README">
+    <DockPanel>
+        <ScrollViewer Margin="10">
+            <TextBlock Name="txtReadme" TextWrapping="Wrap"/>
+        </ScrollViewer>
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom" Margin="10" HorizontalAlignment="Right" Spacing="10">
+            <CheckBox Name="chkDontShow" Content="Don't show again" VerticalAlignment="Center"/>
+            <Button Name="btnOk" Content="OK" Width="80"/>
+        </StackPanel>
+    </DockPanel>
+</Window>

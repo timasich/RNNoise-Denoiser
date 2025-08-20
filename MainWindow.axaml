@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="RNNoise_Denoiser.MainWindow"
-        Width="1120" Height="720" Title="RNNoise Denoiser">
+        Width="1120" Height="720" Title="RNNoise Denoiser" AllowDrop="True">
     <DockPanel>
         <Grid DockPanel.Dock="Top" Margin="10" Height="208" Name="panelTop">
             <Grid.ColumnDefinitions>
