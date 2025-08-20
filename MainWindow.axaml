@@ -1,0 +1,125 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RNNoise_Denoiser.MainWindow"
+        Width="1120" Height="720" Title="RNNoise Denoiser">
+    <DockPanel>
+        <Grid DockPanel.Dock="Top" Margin="10" Height="208" Name="panelTop">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="90"/>
+                <ColumnDefinition Width="600"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="44"/>
+            </Grid.RowDefinitions>
+
+            <!-- FFmpeg -->
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="FFmpeg bin:" VerticalAlignment="Center" Name="lblFfmpeg"/>
+            <TextBox Grid.Row="0" Grid.Column="1" Name="txtFfmpeg"/>
+            <Button Grid.Row="0" Grid.Column="2" Content="Browse" Name="btnFfmpegBrowse"/>
+
+            <!-- Model -->
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Model:" VerticalAlignment="Center" Name="lblModel"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Name="txtModel"/>
+            <Button Grid.Row="1" Grid.Column="2" Content="Browse" Name="btnModelBrowse"/>
+
+            <!-- Output -->
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Output:" VerticalAlignment="Center" Name="lblOutput"/>
+            <TextBox Grid.Row="2" Grid.Column="1" Name="txtOutput"/>
+            <Button Grid.Row="2" Grid.Column="2" Content="Browse" Name="btnOutputBrowse"/>
+
+            <!-- Buttons -->
+            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="0,6,0,0">
+                <Button Content="Add files" Name="btnAddFiles"/>
+                <Button Content="Add folder" Name="btnAddFolder"/>
+                <Button Content="Check env" Name="btnCheckEnv"/>
+                <Button Content="Preview" Name="btnPreview"/>
+                <Button Content="Start" Name="btnStart"/>
+                <Button Content="Cancel" Name="btnCancel" IsEnabled="False"/>
+            </StackPanel>
+
+            <!-- Right Grid -->
+            <Grid Grid.Row="0" Grid.Column="3" Grid.RowSpan="4" Margin="10,0,0,0" Name="rightGrid">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="40"/>
+                    <RowDefinition Height="40"/>
+                    <RowDefinition Height="40"/>
+                    <RowDefinition Height="40"/>
+                    <RowDefinition Height="40"/>
+                </Grid.RowDefinitions>
+
+                <!-- Preset row -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Preset:" VerticalAlignment="Center" Name="lblPreset"/>
+                <ComboBox Grid.Row="0" Grid.Column="1" Name="cboPreset"/>
+                <StackPanel Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6">
+                    <Button Content="Save" Name="btnSavePreset"/>
+                    <Button Content="Rename" Name="btnRenamePreset"/>
+                    <Button Content="Delete" Name="btnDeletePreset"/>
+                </StackPanel>
+
+                <!-- Codec/Bitrate row -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Codec:" VerticalAlignment="Center" Name="lblCodec"/>
+                <ComboBox Grid.Row="1" Grid.Column="1" Name="cboAudioCodec"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="Bitrate:" VerticalAlignment="Center" Name="lblBr"/>
+                <ComboBox Grid.Row="1" Grid.Column="3" Name="cboBitrate"/>
+
+                <!-- Mix/Highpass row -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="mix (0-1):" VerticalAlignment="Center" Name="lblMix"/>
+                <NumericUpDown Grid.Row="2" Grid.Column="1" Name="numMix" Minimum="0" Maximum="1" Increment="0.05" Value="0.85" Width="80"/>
+                <TextBlock Grid.Row="2" Grid.Column="2" Text="Highpass (Hz):" VerticalAlignment="Center" Name="lblHp"/>
+                <StackPanel Grid.Row="2" Grid.Column="3" Orientation="Horizontal" Spacing="6">
+                    <CheckBox Content="On" Name="chkHighpass"/>
+                    <NumericUpDown Name="numHighpass" Minimum="20" Maximum="300" Value="80" IsEnabled="False" Width="80"/>
+                </StackPanel>
+
+                <!-- SpeechNorm/Lowpass row -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="SpeechNorm:" VerticalAlignment="Center" Name="lblSn"/>
+                <CheckBox Grid.Row="3" Grid.Column="1" Content="On" Name="chkSpeechNorm"/>
+                <TextBlock Grid.Row="3" Grid.Column="2" Text="Lowpass (Hz):" VerticalAlignment="Center" Name="lblLp"/>
+                <StackPanel Grid.Row="3" Grid.Column="3" Orientation="Horizontal" Spacing="6">
+                    <CheckBox Content="On" Name="chkLowpass"/>
+                    <NumericUpDown Name="numLowpass" Minimum="4000" Maximum="20000" Value="12000" IsEnabled="False" Width="80"/>
+                </StackPanel>
+
+                <!-- Copy Video row -->
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Copy video:" VerticalAlignment="Center" Name="lblCopy"/>
+                <CheckBox Grid.Row="4" Grid.Column="1" Content="On" IsChecked="True" Name="chkCopyVideo"/>
+            </Grid>
+        </Grid>
+
+        <!-- Queue -->
+        <DataGrid DockPanel.Dock="Top" Grid.Row="1" Name="dgQueue" AutoGenerateColumns="False">
+            <DataGrid.Columns>
+                <DataGridCheckBoxColumn Binding="{Binding IsChecked}" Width="30"/>
+                <DataGridTextColumn Header="File" Binding="{Binding Input}" Width="480"/>
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120"/>
+                <DataGridTextColumn Header="Progress" Binding="{Binding Progress}" Width="100"/>
+                <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="100"/>
+                <DataGridTextColumn Header="Output" Binding="{Binding Output}" Width="320"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Status bar -->
+        <StatusBar DockPanel.Dock="Bottom" Name="statusStrip">
+            <StatusBarItem>
+                <TextBlock Name="tslStatus" Text="Ready"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <ComboBox Name="cboLang" Width="120"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Name="tslMadeBy" Text="Made by timasich"/>
+            </StatusBarItem>
+        </StatusBar>
+    </DockPanel>
+</Window>
