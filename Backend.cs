@@ -33,7 +33,7 @@ public sealed class AppSettings
         if (OperatingSystem.IsWindows())
             return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         if (OperatingSystem.IsLinux())
-            return Environment.GetFolderPath(Environment.SpecialFolder.Home);
+            return Environment.GetEnvironmentVariable("HOME") ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         if (OperatingSystem.IsMacOS())
             return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
