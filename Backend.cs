@@ -77,6 +77,7 @@ public sealed class QueueItem
     public string Status { get; set; } = string.Empty;
     public string Progress { get; set; } = string.Empty;
     public string Time { get; set; } = string.Empty;
+    public string ErrorDetails { get; set; } = string.Empty;
 }
 
 public sealed class LangItem

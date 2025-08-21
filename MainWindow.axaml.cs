@@ -1,14 +1,16 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
-using Avalonia.Input;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,6 +33,45 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        numMix.ValueChanged += (s, e) =>
+        {
+            var tb = s as TextBox;
+            if (tb == null) return;
+            var caret = tb.CaretIndex;
+            var newText = ToInvariantNumber(tb.Text);
+            if (tb.Text != newText)
+            {
+                tb.Text = newText;
+                tb.CaretIndex = Math.Min(caret, tb.Text.Length);
+            }
+        };
+
+        numHighpass.ValueChanged += (s, e) =>
+        {
+            var tb = s as TextBox;
+            if (tb == null) return;
+            var caret = tb.CaretIndex;
+            var newText = ToInvariantNumber(tb.Text);
+            if (tb.Text != newText)
+            {
+                tb.Text = newText;
+                tb.CaretIndex = Math.Min(caret, tb.Text.Length);
+            }
+        };
+
+        numLowpass.ValueChanged += (s, e) =>
+        {
+            var tb = s as TextBox;
+            if (tb == null) return;
+            var caret = tb.CaretIndex;
+            var newText = ToInvariantNumber(tb.Text);
+            if (tb.Text != newText)
+            {
+                tb.Text = newText;
+                tb.CaretIndex = Math.Min(caret, tb.Text.Length);
+            }
+        };
 
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var dir = Path.Combine(appData, "RNNoiseDenoiser");
@@ -283,21 +324,46 @@ public partial class MainWindow : Window
         }
     }
 
+    static string EscapeForFilterValue(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+
+        // 1) нормализуем слеши
+        var p = path.Trim().Replace("\\", "/");
+
+        // 2) экранируем спецсимволы filtergraph:
+        // ':' → '\:'  (иначе парсер решит, что это разделитель опций)
+        // ''' → '\''  (если вдруг встретится в пути)
+        p = p.Replace(":", "\\:")
+             .Replace("'", "\\'");
+
+        return p;
+    }
+
     string BuildFilter()
     {
         var filters = new List<string>();
-        if (chkHighpass.IsChecked == true)
-            filters.Add($"highpass=f={numHighpass.Value}");
-        if (chkLowpass.IsChecked == true)
-            filters.Add($"lowpass=f={numLowpass.Value}");
+
+        if (chkHighpass.IsChecked == true && numHighpass.Value is decimal hp && hp > 0)
+            filters.Add($"highpass=f={hp.ToString(CultureInfo.InvariantCulture)}");
+
+        if (chkLowpass.IsChecked == true && numLowpass.Value is decimal lp && lp > 0)
+            filters.Add($"lowpass=f={lp.ToString(CultureInfo.InvariantCulture)}");
+
         filters.Add("aresample=48000");
-        var modelPath = txtModel.Text.Replace("\\", "/").Replace(":", "\\:");
-        var arnndn = $"arnndn=m='{modelPath}'";
+
+        // Путь к модели: экранируем под filtergraph и ОБОРАЧИВАЕМ в одинарные кавычки
+        var modelEsc = EscapeForFilterValue(txtModel.Text ?? string.Empty);
+        var arnndn = $"arnndn=m='{modelEsc}'";
+
         if (numMix.Value is decimal mv)
-            arnndn += $":mix={(double)mv}";
+            arnndn += $":mix={((double)mv).ToString(CultureInfo.InvariantCulture)}";
+
         filters.Add(arnndn);
+
         if (chkSpeechNorm.IsChecked == true)
             filters.Add("speechnorm=e=6");
+
         return string.Join(",", filters);
     }
 
@@ -388,25 +454,34 @@ public partial class MainWindow : Window
     {
         var item = _queue.FirstOrDefault(q => q.IsChecked) ?? _queue.FirstOrDefault();
         if (item == null) return;
+
         var ffplay = Path.Combine(txtFfmpeg.Text, OperatingSystem.IsWindows() ? "ffplay.exe" : "ffplay");
         if (!File.Exists(ffplay))
         {
             tslStatus.Text = "ffplay not found";
             return;
         }
+
         var filter = BuildFilter();
+
         try
         {
-            var psi = new ProcessStartInfo(ffplay) { UseShellExecute = false };
+            var psi = new ProcessStartInfo(ffplay)
+            {
+                UseShellExecute = false
+            };
+
             psi.ArgumentList.Add("-i");
             psi.ArgumentList.Add(item.Input);
+
             psi.ArgumentList.Add("-af");
             psi.ArgumentList.Add(filter);
+
             Process.Start(psi);
         }
         catch (Exception ex)
         {
-            tslStatus.Text = ex.Message;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => tslStatus.Text = ex.Message);
         }
     }
 
@@ -414,11 +489,15 @@ public partial class MainWindow : Window
     {
         SaveSettingsFromUi();
         if (_queue.Count == 0) return;
+
         btnStart.IsEnabled = false;
         btnCancel.IsEnabled = true;
         _cts = new CancellationTokenSource();
         tslStatus.Text = "Processing...";
-        var ffmpeg = Path.Combine(txtFfmpeg.Text, OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg");
+
+        var ffmpeg = Path.Combine(txtFfmpeg.Text,
+            OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg");
+
         foreach (var item in _queue)
         {
             if (_cts.IsCancellationRequested)
@@ -426,18 +505,72 @@ public partial class MainWindow : Window
                 item.Status = "Canceled";
                 break;
             }
+
             item.Status = "Processing";
             Directory.CreateDirectory(Path.GetDirectoryName(item.Output)!);
+
             var args = BuildFfmpegArgs(item.Input, item.Output);
+            var filter = BuildFilter();
+
             try
             {
-                var psi = new ProcessStartInfo(ffmpeg) { UseShellExecute = false, RedirectStandardError = true };
+                var psi = new ProcessStartInfo(ffmpeg)
+                {
+                    UseShellExecute = false,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = false,
+                    CreateNoWindow = true,
+                    StandardErrorEncoding = Encoding.UTF8
+                };
+
                 foreach (var a in args)
                     psi.ArgumentList.Add(a);
-                var proc = Process.Start(psi);
-                if (proc != null)
-                    await proc.WaitForExitAsync(_cts.Token);
-                item.Status = proc?.ExitCode == 0 ? "Done" : "Error";
+
+                // вставляем фильтр отдельно
+                psi.ArgumentList.Add("-af");
+                psi.ArgumentList.Add(filter);
+
+                var errLog = new StringBuilder(capacity: 64_000);
+                using var proc = Process.Start(psi);
+
+                if (proc == null)
+                {
+                    item.Status = "Error";
+                    item.ErrorDetails = "Failed to start FFmpeg process.";
+                    tslStatus.Text = "Failed to start FFmpeg.";
+                    break;
+                }
+
+                // читаем STDERR
+                var readErrTask = Task.Run(async () =>
+                {
+                    while (!proc.HasExited && !_cts!.IsCancellationRequested)
+                    {
+                        var line = await proc.StandardError.ReadLineAsync().ConfigureAwait(false);
+                        if (line == null) break;
+                        if (errLog.Length < 60_000) errLog.AppendLine(line);
+                    }
+                }, _cts.Token);
+
+                await proc.WaitForExitAsync(_cts.Token).ConfigureAwait(false);
+                await readErrTask.ConfigureAwait(false);
+
+                if (proc.ExitCode == 0)
+                {
+                    item.Status = "Done";
+                }
+                else
+                {
+                    var log = errLog.ToString();
+                    var tail = LastLines(log, 12);
+                    var hint = DiagnoseFfmpegError(log, proc.ExitCode, item.Input);
+
+                    item.Status = $"Error ({proc.ExitCode})";
+                    item.ErrorDetails = string.IsNullOrWhiteSpace(hint)
+                        ? tail
+                        : (hint + Environment.NewLine + Environment.NewLine + tail);
+                    tslStatus.Text = hint.Length > 0 ? hint : $"FFmpeg error {proc.ExitCode}";
+                }
             }
             catch (OperationCanceledException)
             {
@@ -447,14 +580,57 @@ public partial class MainWindow : Window
             catch (Exception ex)
             {
                 item.Status = "Error";
-                tslStatus.Text = ex.Message;
+                item.ErrorDetails = ex.ToString();
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => tslStatus.Text = ex.Message);
                 break;
             }
         }
-        tslStatus.Text = Localizer.Tr("Ready");
-        btnStart.IsEnabled = true;
-        btnCancel.IsEnabled = false;
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => tslStatus.Text = Localizer.Tr("Ready"));
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => btnStart.IsEnabled = true);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => btnCancel.IsEnabled = false);
         _cts = null;
+    }
+    static string LastLines(string text, int lines)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        var arr = text.Split('\n');
+        int take = Math.Min(lines, arr.Length);
+        return string.Join(Environment.NewLine, arr[^take..]).TrimEnd();
+    }
+
+    static string DiagnoseFfmpegError(string stderr, int exitCode, string inputPath)
+    {
+        stderr = stderr ?? string.Empty;
+        string s = stderr.ToLowerInvariant();
+
+        // Частые кейсы
+        if (s.Contains("no such filter: 'arnndn'"))
+            return "Your FFmpeg build lacks 'arnndn' filter. Install a build with arnndn support.";
+
+        if (s.Contains("option 'mix' not found"))
+            return "FFmpeg 'arnndn' in this build has no 'mix' option. Update FFmpeg or remove ':mix=' from the filter.";
+
+        if (s.Contains("error opening model") || s.Contains("no such file or directory") && s.Contains("arnndn"))
+            return "Model file not found or unreadable by 'arnndn'. Check the path; avoid single quotes and prefer forward slashes.";
+
+        if (s.Contains("error initializing filter 'arnndn'") || s.Contains("invalid argument") || exitCode == -22)
+            return "Invalid arguments for 'arnndn'. Most often: wrong model path or extra quotes in -af. Use m=/path/to/model.rnnn and do not wrap -af in quotes.";
+
+        if (s.Contains("could not find codec parameters"))
+            return "FFmpeg failed to read input. The file may be corrupt or unsupported.";
+
+        if (s.Contains("protocol not found"))
+            return "Unsupported protocol in path/URL. Use local file paths.";
+
+        // Общая подсказка по путям
+        if (s.Contains("no such file or directory"))
+            return "Path not found. Verify FFmpeg path, model path and output folder.";
+
+        // Если ничего не распознали — короткая справка
+        return exitCode != 0
+            ? $"FFmpeg returned {exitCode}. See error log tail below."
+            : string.Empty;
     }
 
     void BtnCancel_Click(object? sender, RoutedEventArgs e) => _cts?.Cancel();
@@ -560,5 +736,19 @@ public partial class MainWindow : Window
             _settings.ShowReadme = false;
             _settings.Save(_settingsPath);
         }
+    }
+
+    private static string ToInvariantNumber(string input)
+    {
+        // Replace comma with dot, remove extra dots, allow only one dot
+        var replaced = input.Replace(',', '.');
+        int firstDot = replaced.IndexOf('.');
+        if (firstDot >= 0)
+        {
+            // Remove all dots except the first
+            replaced = replaced.Substring(0, firstDot + 1) +
+                       replaced.Substring(firstDot + 1).Replace(".", "");
+        }
+        return replaced;
     }
 }
