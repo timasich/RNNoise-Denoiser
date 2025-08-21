@@ -285,18 +285,19 @@ public partial class MainWindow : Window
 
     string BuildFilter()
     {
-        var filters = new List<string> { "aresample=48000" };
-        var modelPath = txtModel.Text.Replace("\\", "/");
-        var arnndn = $"arnndn=m='{modelPath}'";
-        if (numMix.Value is decimal mv)
-            arnndn += $":mix={(double)mv}";
-        if (chkSpeechNorm.IsChecked == true)
-            arnndn += ":speechnorm=1";
-        filters.Add(arnndn);
+        var filters = new List<string>();
         if (chkHighpass.IsChecked == true)
             filters.Add($"highpass=f={numHighpass.Value}");
         if (chkLowpass.IsChecked == true)
             filters.Add($"lowpass=f={numLowpass.Value}");
+        filters.Add("aresample=48000");
+        var modelPath = txtModel.Text.Replace("\\", "/").Replace(":", "\\:");
+        var arnndn = $"arnndn=m='{modelPath}'";
+        if (numMix.Value is decimal mv)
+            arnndn += $":mix={(double)mv}";
+        filters.Add(arnndn);
+        if (chkSpeechNorm.IsChecked == true)
+            filters.Add("speechnorm=e=6");
         return string.Join(",", filters);
     }
 
