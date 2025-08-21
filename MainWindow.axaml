@@ -97,8 +97,17 @@
             </Grid>
         </Grid>
 
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Bottom" Name="statusStrip" Padding="4">
+            <DockPanel>
+                <ComboBox Name="cboLang" Width="120" DockPanel.Dock="Right"/>
+                <TextBlock Name="tslMadeBy" Text="Made by timasich" DockPanel.Dock="Right"/>
+                <TextBlock Name="tslStatus" Text="Ready"/>
+            </DockPanel>
+        </Border>
+
         <!-- Queue -->
-        <DataGrid Grid.Row="1" Name="dgQueue" AutoGenerateColumns="False">
+        <DataGrid Name="dgQueue" AutoGenerateColumns="False">
             <DataGrid.Columns>
                 <DataGridCheckBoxColumn Binding="{Binding IsChecked}" Width="30"/>
                 <DataGridTextColumn Header="File" Binding="{Binding Input}" Width="480"/>
@@ -108,14 +117,5 @@
                 <DataGridTextColumn Header="Output" Binding="{Binding Output}" Width="320"/>
             </DataGrid.Columns>
         </DataGrid>
-
-        <!-- Status bar -->
-        <Border DockPanel.Dock="Bottom" Name="statusStrip" Padding="4">
-            <DockPanel>
-                <ComboBox Name="cboLang" Width="120" DockPanel.Dock="Right"/>
-                <TextBlock Name="tslMadeBy" Text="Made by timasich" DockPanel.Dock="Right"/>
-                <TextBlock Name="tslStatus" Text="Ready"/>
-            </DockPanel>
-        </Border>
     </DockPanel>
 </Window>

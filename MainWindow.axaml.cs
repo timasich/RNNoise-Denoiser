@@ -174,6 +174,42 @@ public partial class MainWindow : Window
         lblSn.Text = Localizer.Tr("SpeechNorm:");
         lblLp.Text = Localizer.Tr("Lowpass (Hz):");
         lblCopy.Text = Localizer.Tr("Copy video:");
+        ToolTip.SetTip(lblFfmpeg, Localizer.Tr("Folder with ffmpeg/bin (ffmpeg.exe, ffprobe.exe)"));
+        ToolTip.SetTip(txtFfmpeg, Localizer.Tr("Folder with ffmpeg/bin (ffmpeg.exe, ffprobe.exe)"));
+        ToolTip.SetTip(btnFfmpegBrowse, Localizer.Tr("Select ffmpeg/bin folder"));
+        ToolTip.SetTip(lblModel, Localizer.Tr("RNNoise model file"));
+        ToolTip.SetTip(txtModel, Localizer.Tr("RNNoise model file"));
+        ToolTip.SetTip(btnModelBrowse, Localizer.Tr("Select RNNoise model file"));
+        ToolTip.SetTip(lblOutput, Localizer.Tr("Output folder"));
+        ToolTip.SetTip(txtOutput, Localizer.Tr("Output folder"));
+        ToolTip.SetTip(btnOutputBrowse, Localizer.Tr("Select output folder"));
+        ToolTip.SetTip(btnAddFiles, Localizer.Tr("Add files to queue"));
+        ToolTip.SetTip(btnAddFolder, Localizer.Tr("Add all supported files from folder"));
+        ToolTip.SetTip(btnCheckEnv, Localizer.Tr("Check required tools"));
+        ToolTip.SetTip(btnPreview, Localizer.Tr("Preview selected file"));
+        ToolTip.SetTip(btnStart, Localizer.Tr("Start processing selected files"));
+        ToolTip.SetTip(btnCancel, Localizer.Tr("Cancel current processing"));
+        ToolTip.SetTip(lblCodec, Localizer.Tr("Audio codec of output file"));
+        ToolTip.SetTip(cboAudioCodec, Localizer.Tr("Audio codec of output file"));
+        ToolTip.SetTip(lblBr, Localizer.Tr("Audio bitrate: higher = better quality but larger file"));
+        ToolTip.SetTip(cboBitrate, Localizer.Tr("Audio bitrate: higher = better quality but larger file"));
+        ToolTip.SetTip(lblMix, Localizer.Tr("Noise reduction amount: 0 = no processing, 1 = maximum reduction"));
+        ToolTip.SetTip(numMix, Localizer.Tr("Noise reduction amount: 0 = no processing, 1 = maximum reduction"));
+        ToolTip.SetTip(lblHp, Localizer.Tr("Removes frequencies below specified value, helps remove hum"));
+        ToolTip.SetTip(chkHighpass, Localizer.Tr("Removes frequencies below specified value, helps remove hum"));
+        ToolTip.SetTip(numHighpass, Localizer.Tr("High-pass filter cutoff frequency (Hz)"));
+        ToolTip.SetTip(lblSn, Localizer.Tr("Normalizes speech loudness"));
+        ToolTip.SetTip(chkSpeechNorm, Localizer.Tr("Normalizes speech loudness"));
+        ToolTip.SetTip(lblLp, Localizer.Tr("Removes frequencies above specified value, suppresses HF noise"));
+        ToolTip.SetTip(chkLowpass, Localizer.Tr("Removes frequencies above specified value, suppresses HF noise"));
+        ToolTip.SetTip(numLowpass, Localizer.Tr("Low-pass filter cutoff frequency (Hz)"));
+        ToolTip.SetTip(lblCopy, Localizer.Tr("Do not re-encode video, replace audio only"));
+        ToolTip.SetTip(chkCopyVideo, Localizer.Tr("Do not re-encode video, replace audio only"));
+        ToolTip.SetTip(lblPreset, Localizer.Tr("Preset:"));
+        ToolTip.SetTip(cboPreset, Localizer.Tr("Preset:"));
+        ToolTip.SetTip(btnSavePreset, Localizer.Tr("Save"));
+        ToolTip.SetTip(btnRenamePreset, Localizer.Tr("Rename"));
+        ToolTip.SetTip(btnDeletePreset, Localizer.Tr("Delete"));
         if (dgQueue.Columns.Count > 5)
         {
             dgQueue.Columns[1].Header = Localizer.Tr("File");
@@ -197,6 +233,7 @@ public partial class MainWindow : Window
             if (cboPreset.SelectedItem is string name)
                 ApplyProfile(GetPreset(name));
         };
+        cboPreset.SelectedItem = "Standard";
     }
 
     DenoiseProfile GetPreset(string name)
@@ -249,7 +286,8 @@ public partial class MainWindow : Window
     string BuildFilter()
     {
         var filters = new List<string> { "aresample=48000" };
-        var arnndn = $"arnndn=m='{txtModel.Text}'";
+        var modelPath = txtModel.Text.Replace("\\", "/");
+        var arnndn = $"arnndn=m='{modelPath}'";
         if (numMix.Value is decimal mv)
             arnndn += $":mix={(double)mv}";
         if (chkSpeechNorm.IsChecked == true)
@@ -262,16 +300,23 @@ public partial class MainWindow : Window
         return string.Join(",", filters);
     }
 
-    string BuildFfmpegArgs(string input, string output)
+    string[] BuildFfmpegArgs(string input, string output)
     {
         var filter = BuildFilter();
-        var args = $"-i \"{input}\" -af \"{filter}\" -c:a {(string?)cboAudioCodec.SelectedItem ?? "aac"} -b:a {(string?)cboBitrate.SelectedItem ?? "192k"}";
+        var list = new List<string>
+        {
+            "-i", input,
+            "-af", filter,
+            "-c:a", (string?)cboAudioCodec.SelectedItem ?? "aac",
+            "-b:a", (string?)cboBitrate.SelectedItem ?? "192k"
+        };
         if (chkCopyVideo.IsChecked == true)
-            args += " -c:v copy";
+            list.AddRange(new[] { "-c:v", "copy" });
         else
-            args += " -vn";
-        args += $" \"{output}\" -y";
-        return args;
+            list.Add("-vn");
+        list.Add("-y");
+        list.Add(output);
+        return list.ToArray();
     }
 
     async void BtnAddFiles_Click(object? sender, RoutedEventArgs e)
@@ -293,21 +338,49 @@ public partial class MainWindow : Window
         AddFilesToQueue(files);
     }
 
-    void BtnCheckEnv_Click(object? sender, RoutedEventArgs e)
+    async void BtnCheckEnv_Click(object? sender, RoutedEventArgs e)
     {
         var ffmpeg = Path.Combine(txtFfmpeg.Text, OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg");
         var ffprobe = Path.Combine(txtFfmpeg.Text, OperatingSystem.IsWindows() ? "ffprobe.exe" : "ffprobe");
-        if (!File.Exists(ffmpeg) || !File.Exists(ffprobe))
+        var lines = new List<string>
         {
-            tslStatus.Text = Localizer.Tr("ffmpeg.exe/ffprobe.exe not found. Specify path to bin folder.");
-            return;
-        }
-        if (!File.Exists(txtModel.Text))
+            $"ffmpeg: {(File.Exists(ffmpeg) ? Localizer.Tr("OK") : Localizer.Tr("Missing"))}",
+            $"ffprobe: {(File.Exists(ffprobe) ? Localizer.Tr("OK") : Localizer.Tr("Missing"))}"
+        };
+        bool arnndn = false;
+        if (File.Exists(ffmpeg))
         {
-            tslStatus.Text = Localizer.Tr(".rnnn model file not found.");
-            return;
+            try
+            {
+                var psi = new ProcessStartInfo(ffmpeg) { Arguments = "-hide_banner -filters", RedirectStandardOutput = true, UseShellExecute = false };
+                var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    var output = await proc.StandardOutput.ReadToEndAsync();
+                    await proc.WaitForExitAsync();
+                    arnndn = output.Contains("arnndn");
+                }
+            }
+            catch { }
         }
-        tslStatus.Text = "Environment OK";
+        lines.Add($"{Localizer.Tr("arnndn filter")}: {(arnndn ? Localizer.Tr("OK") : Localizer.Tr("Missing"))}");
+        lines.Add($"{Localizer.Tr("model")}: {(File.Exists(txtModel.Text) ? Localizer.Tr("OK") : Localizer.Tr("Missing"))}");
+
+        var win = new Window
+        {
+            Width = 400,
+            Height = 200,
+            Title = Localizer.Tr("Environment"),
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        var text = new TextBlock { Margin = new Thickness(10), Text = string.Join(Environment.NewLine, lines) };
+        var ok = new Button { Content = Localizer.Tr("OK"), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(10) };
+        ok.Click += (_, __) => win.Close();
+        var stack = new StackPanel();
+        stack.Children.Add(text);
+        stack.Children.Add(ok);
+        win.Content = stack;
+        await win.ShowDialog(this);
     }
 
     async void BtnPreview_Click(object? sender, RoutedEventArgs e)
@@ -323,7 +396,12 @@ public partial class MainWindow : Window
         var filter = BuildFilter();
         try
         {
-            Process.Start(new ProcessStartInfo(ffplay, $"-i \"{item.Input}\" -af \"{filter}\"") { UseShellExecute = true });
+            var psi = new ProcessStartInfo(ffplay) { UseShellExecute = false };
+            psi.ArgumentList.Add("-i");
+            psi.ArgumentList.Add(item.Input);
+            psi.ArgumentList.Add("-af");
+            psi.ArgumentList.Add(filter);
+            Process.Start(psi);
         }
         catch (Exception ex)
         {
@@ -352,7 +430,9 @@ public partial class MainWindow : Window
             var args = BuildFfmpegArgs(item.Input, item.Output);
             try
             {
-                var psi = new ProcessStartInfo(ffmpeg, args) { UseShellExecute = false, RedirectStandardError = true };
+                var psi = new ProcessStartInfo(ffmpeg) { UseShellExecute = false, RedirectStandardError = true };
+                foreach (var a in args)
+                    psi.ArgumentList.Add(a);
                 var proc = Process.Start(psi);
                 if (proc != null)
                     await proc.WaitForExitAsync(_cts.Token);
