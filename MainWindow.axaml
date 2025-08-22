@@ -109,7 +109,7 @@
         </Border>
 
         <!-- Queue -->
-      < x:Name="dgQueue"
+      <DataGrid x:Name="dgQueue"
         AutoGenerateColumns="False"
         IsReadOnly="True"
         dnd:DragDrop.AllowDrop="True">
@@ -132,6 +132,6 @@
             <MenuItem Header="Preview"                Name="miPreview"/>
           </ContextMenu>
         </DataGrid.ContextMenu>
-      </>
+      </DataGrid>
     </DockPanel>
 </Window>
