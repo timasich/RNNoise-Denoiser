@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Platform.Storage;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -132,8 +133,7 @@ public partial class MainWindow : Window
         miPreview.Click += MiPreview_Click;
 
         tslMadeBy.PointerPressed += (_, __) => ShowReadme();
-        if (_settings.ShowReadme)
-            ShowReadme();
+        Opened += (_, __) => { if (_settings.ShowReadme) ShowReadme(); };
     }
 
     async void BtnFfmpegBrowse_Click(object? sender, RoutedEventArgs e)
@@ -866,16 +866,17 @@ public partial class MainWindow : Window
 
     void OnDragOver(object? sender, DragEventArgs e)
     {
-        if (e.Data.Contains(DataFormats.FileNames))
+        if (e.Data.Contains(DataFormats.Files))
             e.DragEffects = DragDropEffects.Copy;
     }
 
-    void OnDrop(object? sender, DragEventArgs e)
+    async void OnDrop(object? sender, DragEventArgs e)
     {
-        if (e.Data.Contains(DataFormats.FileNames))
+        if (e.Data.Contains(DataFormats.Files))
         {
-            var files = e.Data.GetFileNames();
-            AddFilesToQueue(files);
+            var storageFiles = await e.Data.GetFilesAsync();
+            if (storageFiles != null)
+                AddFilesToQueue(storageFiles.Select(f => f.Path.LocalPath));
         }
     }
 

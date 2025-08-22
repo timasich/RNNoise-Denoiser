@@ -109,19 +109,18 @@
         </Border>
 
         <!-- Queue -->
-      <DataGrid x:Name="dgQueue"
+        <DataGrid x:Name="dgQueue"
         AutoGenerateColumns="False"
-        IsReadOnly="True"
         dnd:DragDrop.AllowDrop="True">
         <DataGrid.Columns>
           <DataGridCheckBoxColumn Binding="{Binding IsChecked}" Width="30"/>
-          <DataGridTextColumn Header="File"     Binding="{Binding Input}"    Width="480"/>
-          <DataGridTextColumn Header="Status"   Binding="{Binding Status}"   Width="120"/>
-          <DataGridTextColumn Header="Progress" Binding="{Binding Progress}" Width="100"/>
-          <DataGridTextColumn Header="Time"     Binding="{Binding Time}"     Width="100"/>
-          <DataGridTextColumn Header="Output"   Binding="{Binding Output}"   Width="320"/>
+          <DataGridTextColumn Header="File"     Binding="{Binding Input}"    Width="480" IsReadOnly="True"/>
+          <DataGridTextColumn Header="Status"   Binding="{Binding Status}"   Width="120" IsReadOnly="True"/>
+          <DataGridTextColumn Header="Progress" Binding="{Binding Progress}" Width="100" IsReadOnly="True"/>
+          <DataGridTextColumn Header="Time"     Binding="{Binding Time}"     Width="100" IsReadOnly="True"/>
+          <DataGridTextColumn Header="Output"   Binding="{Binding Output}"   Width="320" IsReadOnly="True"/>
         </DataGrid.Columns>
-        <DataGrid.ContextMenu>
+        <DataGrid.RowContextMenu>
           <ContextMenu>
             <MenuItem Header="Remove from queue"      Name="miRemove"/>
             <MenuItem Header="Duplicate"              Name="miDuplicate"/>
@@ -131,7 +130,7 @@
             <MenuItem Header="Unmark from cleanup"    Name="miUnmark"/>
             <MenuItem Header="Preview"                Name="miPreview"/>
           </ContextMenu>
-        </DataGrid.ContextMenu>
+        </DataGrid.RowContextMenu>
       </DataGrid>
     </DockPanel>
 </Window>
