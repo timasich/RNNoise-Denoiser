@@ -1,5 +1,8 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+
+namespace RNNoise_Denoiser;
 
 public sealed class QueueItem : INotifyPropertyChanged
 {
