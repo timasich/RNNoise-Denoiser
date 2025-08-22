@@ -109,7 +109,7 @@
         </Border>
 
         <!-- Queue -->
-        <DataGrid Name="dgQueue" AutoGenerateColumns="False">
+        <DataGrid Name="dgQueue" AutoGenerateColumns="False" IsReadOnly="True" AllowDrop="True" CanUserAddRows="False">
             <DataGrid.Columns>
                 <DataGridCheckBoxColumn Binding="{Binding IsChecked}" Width="30"/>
                 <DataGridTextColumn Header="File" Binding="{Binding Input}" Width="480"/>
@@ -118,6 +118,17 @@
                 <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="100"/>
                 <DataGridTextColumn Header="Output" Binding="{Binding Output}" Width="320"/>
             </DataGrid.Columns>
+            <DataGrid.RowContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Remove from queue" Name="miRemove"/>
+                    <MenuItem Header="Duplicate" Name="miDuplicate"/>
+                    <MenuItem Header="Open folder with original" Name="miOpenOriginal"/>
+                    <MenuItem Header="Open output folder" Name="miOpenOutput"/>
+                    <MenuItem Header="Mark for cleanup" Name="miMark"/>
+                    <MenuItem Header="Unmark from cleanup" Name="miUnmark"/>
+                    <MenuItem Header="Preview" Name="miPreview"/>
+                </ContextMenu>
+            </DataGrid.RowContextMenu>
         </DataGrid>
     </DockPanel>
 </Window>

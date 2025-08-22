@@ -6,7 +6,11 @@ namespace RNNoise_Denoiser;
 
 public partial class ReadmeWindow : Window
 {
-    public bool DontShowAgain => chkDontShow.IsChecked == true;
+    public bool DontShowAgain
+    {
+        get => chkDontShow.IsChecked == true;
+        set => chkDontShow.IsChecked = value;
+    }
 
     public ReadmeWindow()
     {

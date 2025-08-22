@@ -118,8 +118,19 @@ public partial class MainWindow : Window
 
         dgQueue.ItemsSource = _queue;
 
+        dgQueue.AddHandler(DragDrop.DropEvent, OnDrop);
+        dgQueue.AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
+
+        miRemove.Click += MiRemove_Click;
+        miDuplicate.Click += MiDuplicate_Click;
+        miOpenOriginal.Click += MiOpenOriginal_Click;
+        miOpenOutput.Click += MiOpenOutput_Click;
+        miMark.Click += MiMark_Click;
+        miUnmark.Click += MiUnmark_Click;
+        miPreview.Click += MiPreview_Click;
+
         tslMadeBy.PointerPressed += (_, __) => ShowReadme();
         if (_settings.ShowReadme)
             ShowReadme();
@@ -259,6 +270,13 @@ public partial class MainWindow : Window
             dgQueue.Columns[4].Header = Localizer.Tr("Time");
             dgQueue.Columns[5].Header = Localizer.Tr("Output");
         }
+        miRemove.Header = Localizer.Tr("Remove from queue");
+        miDuplicate.Header = Localizer.Tr("Duplicate");
+        miOpenOriginal.Header = Localizer.Tr("Open folder with original");
+        miOpenOutput.Header = Localizer.Tr("Open output folder");
+        miMark.Header = Localizer.Tr("Mark for cleanup");
+        miUnmark.Header = Localizer.Tr("Unmark from cleanup");
+        miPreview.Header = Localizer.Tr("Preview");
         tslStatus.Text = Localizer.Tr("Ready");
     }
 
@@ -320,7 +338,7 @@ public partial class MainWindow : Window
             if (!File.Exists(f)) continue;
             var output = Path.Combine(txtOutput.Text,
                 Path.GetFileNameWithoutExtension(f) + "_denoised" + Path.GetExtension(f));
-            _queue.Add(new QueueItem { Input = f, Output = output });
+            _queue.Add(new QueueItem { Input = f, Output = output, IsChecked = true, Status = Localizer.Tr("Queued") });
         }
     }
 
@@ -452,14 +470,22 @@ public partial class MainWindow : Window
 
     async void BtnPreview_Click(object? sender, RoutedEventArgs e)
     {
-        var item = _queue.FirstOrDefault(q => q.IsChecked) ?? _queue.FirstOrDefault();
-        if (item == null) return;
+        var item = dgQueue.SelectedItem as QueueItem;
+        if (item == null)
+        {
+            tslStatus.Text = Localizer.Tr("Select a file in queue");
+            return;
+        }
+        await PreviewItem(item);
+    }
 
+    Task PreviewItem(QueueItem item)
+    {
         var ffplay = Path.Combine(txtFfmpeg.Text, OperatingSystem.IsWindows() ? "ffplay.exe" : "ffplay");
         if (!File.Exists(ffplay))
         {
             tslStatus.Text = "ffplay not found";
-            return;
+            return Task.CompletedTask;
         }
 
         var filter = BuildFilter();
@@ -483,6 +509,7 @@ public partial class MainWindow : Window
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() => tslStatus.Text = ex.Message);
         }
+        return Task.CompletedTask;
     }
 
     async void BtnStart_Click(object? sender, RoutedEventArgs e)
@@ -493,20 +520,26 @@ public partial class MainWindow : Window
         btnStart.IsEnabled = false;
         btnCancel.IsEnabled = true;
         _cts = new CancellationTokenSource();
-        tslStatus.Text = "Processing...";
+        tslStatus.Text = Localizer.Tr("Processing...");
 
         var ffmpeg = Path.Combine(txtFfmpeg.Text,
             OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg");
+        var ffprobe = Path.Combine(txtFfmpeg.Text,
+            OperatingSystem.IsWindows() ? "ffprobe.exe" : "ffprobe");
 
         foreach (var item in _queue)
         {
             if (_cts.IsCancellationRequested)
             {
-                item.Status = "Canceled";
+                item.Status = Localizer.Tr("Cancelled");
                 break;
             }
 
-            item.Status = "Processing";
+            item.Status = Localizer.Tr("Preparing");
+            var duration = await GetDurationAsync(ffprobe, item.Input);
+            item.Progress = "0%";
+            item.Time = FormatTime(0);
+            item.Status = Localizer.Tr("Processing...");
             Directory.CreateDirectory(Path.GetDirectoryName(item.Output)!);
 
             var args = BuildFfmpegArgs(item.Input, item.Output);
@@ -549,6 +582,24 @@ public partial class MainWindow : Window
                         var line = await proc.StandardError.ReadLineAsync().ConfigureAwait(false);
                         if (line == null) break;
                         if (errLog.Length < 60_000) errLog.AppendLine(line);
+
+                        var idx = line.IndexOf("time=");
+                        if (idx >= 0 && duration > 0)
+                        {
+                            var tStr = line.Substring(idx + 5);
+                            var space = tStr.IndexOf(' ');
+                            if (space > 0) tStr = tStr[..space];
+                            if (TimeSpan.TryParse(tStr, CultureInfo.InvariantCulture, out var ts))
+                            {
+                                var prog = ts.TotalSeconds / duration;
+                                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                                {
+                                    item.Progress = prog.ToString("P0", CultureInfo.InvariantCulture);
+                                    item.Time = FormatTime(ts.TotalSeconds);
+                                    tslStatus.Text = string.Format(Localizer.Tr("Time: {0}"), FormatTime(ts.TotalSeconds));
+                                });
+                            }
+                        }
                     }
                 }, _cts.Token);
 
@@ -557,7 +608,10 @@ public partial class MainWindow : Window
 
                 if (proc.ExitCode == 0)
                 {
-                    item.Status = "Done";
+                    item.Status = Localizer.Tr("Done");
+                    item.Progress = "100%";
+                    item.Time = FormatTime(duration);
+                    item.IsChecked = false;
                 }
                 else
                 {
@@ -569,12 +623,14 @@ public partial class MainWindow : Window
                     item.ErrorDetails = string.IsNullOrWhiteSpace(hint)
                         ? tail
                         : (hint + Environment.NewLine + Environment.NewLine + tail);
+                    item.Progress = string.Empty;
+                    item.Time = string.Empty;
                     tslStatus.Text = hint.Length > 0 ? hint : $"FFmpeg error {proc.ExitCode}";
                 }
             }
             catch (OperationCanceledException)
             {
-                item.Status = "Canceled";
+                item.Status = Localizer.Tr("Cancelled");
                 break;
             }
             catch (Exception ex)
@@ -591,6 +647,40 @@ public partial class MainWindow : Window
         Avalonia.Threading.Dispatcher.UIThread.Post(() => btnCancel.IsEnabled = false);
         _cts = null;
     }
+
+    static string FormatTime(double seconds) =>
+        TimeSpan.FromSeconds(seconds).ToString(@"hh\:mm\:ss");
+
+    async Task<double> GetDurationAsync(string ffprobe, string input)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo(ffprobe)
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            psi.ArgumentList.Add("-v");
+            psi.ArgumentList.Add("error");
+            psi.ArgumentList.Add("-show_entries");
+            psi.ArgumentList.Add("format=duration");
+            psi.ArgumentList.Add("-of");
+            psi.ArgumentList.Add("default=noprint_wrappers=1:nokey=1");
+            psi.ArgumentList.Add(input);
+            using var proc = Process.Start(psi);
+            if (proc == null) return 0;
+            var output = await proc.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
+            await proc.WaitForExitAsync().ConfigureAwait(false);
+            return double.TryParse(output.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var d) ? d : 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     static string LastLines(string text, int lines)
     {
         if (string.IsNullOrEmpty(text)) return string.Empty;
@@ -712,6 +802,68 @@ public partial class MainWindow : Window
         return await tcs.Task;
     }
 
+    void MiRemove_Click(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is QueueItem item)
+            _queue.Remove(item);
+    }
+
+    void MiDuplicate_Click(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is QueueItem item)
+        {
+            var clone = new QueueItem
+            {
+                Input = item.Input,
+                Output = item.Output,
+                IsChecked = item.IsChecked,
+                Status = item.Status,
+                Progress = item.Progress,
+                Time = item.Time
+            };
+            var index = _queue.IndexOf(item);
+            _queue.Insert(index + 1, clone);
+        }
+    }
+
+    void MiOpenOriginal_Click(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is QueueItem item)
+        {
+            var dir = Path.GetDirectoryName(item.Input);
+            if (!string.IsNullOrEmpty(dir))
+                Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+        }
+    }
+
+    void MiOpenOutput_Click(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is QueueItem item)
+        {
+            var dir = Path.GetDirectoryName(item.Output);
+            if (!string.IsNullOrEmpty(dir))
+                Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+        }
+    }
+
+    void MiMark_Click(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is QueueItem item)
+            item.IsChecked = true;
+    }
+
+    void MiUnmark_Click(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is QueueItem item)
+            item.IsChecked = false;
+    }
+
+    async void MiPreview_Click(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is QueueItem item)
+            await PreviewItem(item);
+    }
+
     void OnDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.FileNames))
@@ -729,13 +881,10 @@ public partial class MainWindow : Window
 
     async void ShowReadme()
     {
-        var win = new ReadmeWindow();
+        var win = new ReadmeWindow { DontShowAgain = !_settings.ShowReadme };
         await win.ShowDialog(this);
-        if (win.DontShowAgain)
-        {
-            _settings.ShowReadme = false;
-            _settings.Save(_settingsPath);
-        }
+        _settings.ShowReadme = !win.DontShowAgain;
+        _settings.Save(_settingsPath);
     }
 
     private static string ToInvariantNumber(string input)
