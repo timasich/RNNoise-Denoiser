@@ -111,25 +111,24 @@
         <!-- Queue -->
       <DataGrid x:Name="dgQueue"
         AutoGenerateColumns="False"
-        IsReadOnly="True"
         dnd:DragDrop.AllowDrop="True">
         <DataGrid.Columns>
           <DataGridCheckBoxColumn Binding="{Binding IsChecked}" Width="30"/>
-          <DataGridTextColumn Header="File"     Binding="{Binding Input}"    Width="480"/>
-          <DataGridTextColumn Header="Status"   Binding="{Binding Status}"   Width="120"/>
-          <DataGridTextColumn Header="Progress" Binding="{Binding Progress}" Width="100"/>
-          <DataGridTextColumn Header="Time"     Binding="{Binding Time}"     Width="100"/>
-          <DataGridTextColumn Header="Output"   Binding="{Binding Output}"   Width="320"/>
+          <DataGridTextColumn Header="File"     Binding="{Binding Input}"    Width="480" IsReadOnly="True"/>
+          <DataGridTextColumn Header="Status"   Binding="{Binding Status}"   Width="120" IsReadOnly="True"/>
+          <DataGridTextColumn Header="Progress" Binding="{Binding Progress}" Width="100" IsReadOnly="True"/>
+          <DataGridTextColumn Header="Time"     Binding="{Binding Time}"     Width="100" IsReadOnly="True"/>
+          <DataGridTextColumn Header="Output"   Binding="{Binding Output}"   Width="320" IsReadOnly="True"/>
         </DataGrid.Columns>
         <DataGrid.ContextMenu>
           <ContextMenu>
-            <MenuItem Header="Remove from queue"      Name="miRemove"/>
-            <MenuItem Header="Duplicate"              Name="miDuplicate"/>
-            <MenuItem Header="Open folder with original" Name="miOpenOriginal"/>
-            <MenuItem Header="Open output folder"     Name="miOpenOutput"/>
-            <MenuItem Header="Mark for cleanup"       Name="miMark"/>
-            <MenuItem Header="Unmark from cleanup"    Name="miUnmark"/>
-            <MenuItem Header="Preview"                Name="miPreview"/>
+            <MenuItem Header="Remove from queue"      Name="miRemove"           Click="MiRemove_Click"/>
+            <MenuItem Header="Duplicate"              Name="miDuplicate"        Click="MiDuplicate_Click"/>
+            <MenuItem Header="Open folder with original" Name="miOpenOriginal"  Click="MiOpenOriginal_Click"/>
+            <MenuItem Header="Open output folder"     Name="miOpenOutput"       Click="MiOpenOutput_Click"/>
+            <MenuItem Header="Mark for cleanup"       Name="miMark"             Click="MiMark_Click"/>
+            <MenuItem Header="Unmark from cleanup"    Name="miUnmark"           Click="MiUnmark_Click"/>
+            <MenuItem Header="Preview"                Name="miPreview"          Click="MiPreview_Click"/>
           </ContextMenu>
         </DataGrid.ContextMenu>
       </DataGrid>

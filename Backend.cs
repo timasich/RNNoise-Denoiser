@@ -69,7 +69,7 @@ public sealed class AppSettings
     }
 }
 
-public sealed class QueueItem
+/*public sealed class QueueItem
 {
     public bool IsChecked { get; set; }
     public string Input { get; set; } = string.Empty;
@@ -78,7 +78,7 @@ public sealed class QueueItem
     public string Progress { get; set; } = string.Empty;
     public string Time { get; set; } = string.Empty;
     public string ErrorDetails { get; set; } = string.Empty;
-}
+}*/
 
 public sealed class LangItem
 {

@@ -1,8 +1,10 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Platform.Storage;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -132,8 +134,59 @@ public partial class MainWindow : Window
         miPreview.Click += MiPreview_Click;
 
         tslMadeBy.PointerPressed += (_, __) => ShowReadme();
-        if (_settings.ShowReadme)
-            ShowReadme();
+        Opened += (_, __) => { if (_settings.ShowReadme) ShowReadme(); };
+
+        dgQueue.PointerPressed += DgQueue_PointerPressed;
+    }
+
+    private void DgQueue_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.ClickCount != 2)
+            return;
+
+        var point = e.GetPosition(dgQueue);
+        var hit = dgQueue.InputHitTest(point);
+        if (hit is Control control) // Changed from IControl to Control
+        {
+            // Найти DataGridRow
+            var row = FindAncestorOfType<DataGridRow>(control);
+            if (row?.DataContext is not QueueItem item)
+                return;
+
+            // Найти DataGridCell
+            var cell = FindAncestorOfType<DataGridCell>(control);
+            if (cell == null)
+                return;
+
+            // Определить индекс колонки
+            var column = DataGridColumn.GetColumnContainingElement(cell);
+            int colIndex = column != null ? dgQueue.Columns.IndexOf(column) : -1;
+            if (colIndex == -1 && cell.Parent is Control parent)
+            {
+                // Fallback: try to get the column index by traversing the visual tree
+                for (int i = 0; i < dgQueue.Columns.Count; i++)
+                {
+                    if (dgQueue.Columns[i].Header?.ToString() == cell.Name)
+                    {
+                        colIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (colIndex == 1 && !string.IsNullOrEmpty(item.Input))
+            {
+                var dir = Path.GetDirectoryName(item.Input);
+                if (!string.IsNullOrEmpty(dir))
+                    Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+            }
+            else if (colIndex == 5 && !string.IsNullOrEmpty(item.Output))
+            {
+                var dir = Path.GetDirectoryName(item.Output);
+                if (!string.IsNullOrEmpty(dir))
+                    Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+            }
+        }
     }
 
     async void BtnFfmpegBrowse_Click(object? sender, RoutedEventArgs e)
@@ -527,7 +580,7 @@ public partial class MainWindow : Window
         var ffprobe = Path.Combine(txtFfmpeg.Text,
             OperatingSystem.IsWindows() ? "ffprobe.exe" : "ffprobe");
 
-        foreach (var item in _queue)
+        foreach (var item in _queue.Where(q => q.IsChecked))
         {
             if (_cts.IsCancellationRequested)
             {
@@ -542,8 +595,8 @@ public partial class MainWindow : Window
             item.Status = Localizer.Tr("Processing...");
             Directory.CreateDirectory(Path.GetDirectoryName(item.Output)!);
 
-            var args = BuildFfmpegArgs(item.Input, item.Output);
-            var filter = BuildFilter();
+            var args = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => BuildFfmpegArgs(item.Input, item.Output));
+            var filter = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => BuildFilter());
 
             try
             {
@@ -559,7 +612,6 @@ public partial class MainWindow : Window
                 foreach (var a in args)
                     psi.ArgumentList.Add(a);
 
-                // вставляем фильтр отдельно
                 psi.ArgumentList.Add("-af");
                 psi.ArgumentList.Add(filter);
 
@@ -574,9 +626,12 @@ public partial class MainWindow : Window
                     break;
                 }
 
+                var startTime = DateTime.UtcNow;
+
                 // читаем STDERR
                 var readErrTask = Task.Run(async () =>
                 {
+                    double lastProgress = 0;
                     while (!proc.HasExited && !_cts!.IsCancellationRequested)
                     {
                         var line = await proc.StandardError.ReadLineAsync().ConfigureAwait(false);
@@ -591,12 +646,28 @@ public partial class MainWindow : Window
                             if (space > 0) tStr = tStr[..space];
                             if (TimeSpan.TryParse(tStr, CultureInfo.InvariantCulture, out var ts))
                             {
+                                var elapsed = DateTime.UtcNow - startTime;
                                 var prog = ts.TotalSeconds / duration;
+                                lastProgress = prog;
+
+                                string timeLeftStr;
+                                if (prog > 0.01)
+                                {
+                                    var estimatedTotal = TimeSpan.FromTicks((long)(elapsed.Ticks / prog));
+                                    var remaining = estimatedTotal - elapsed;
+                                    if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
+                                    timeLeftStr = FormatTime(remaining.TotalSeconds);
+                                }
+                                else
+                                {
+                                    timeLeftStr = Localizer.Tr("Unknown");
+                                }
+
                                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                                 {
                                     item.Progress = prog.ToString("P0", CultureInfo.InvariantCulture);
-                                    item.Time = FormatTime(ts.TotalSeconds);
-                                    tslStatus.Text = string.Format(Localizer.Tr("Time: {0}"), FormatTime(ts.TotalSeconds));
+                                    item.Time = timeLeftStr;
+                                    tslStatus.Text = string.Format(Localizer.Tr("Time left: {0}"), timeLeftStr);
                                 });
                             }
                         }
@@ -606,12 +677,18 @@ public partial class MainWindow : Window
                 await proc.WaitForExitAsync(_cts.Token).ConfigureAwait(false);
                 await readErrTask.ConfigureAwait(false);
 
+                var elapsedTotal = DateTime.UtcNow - startTime;
+
                 if (proc.ExitCode == 0)
                 {
                     item.Status = Localizer.Tr("Done");
                     item.Progress = "100%";
-                    item.Time = FormatTime(duration);
+                    item.Time = FormatTime(elapsedTotal.TotalSeconds); // потрачено
                     item.IsChecked = false;
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        tslStatus.Text = string.Format(Localizer.Tr("Elapsed: {0}"), FormatTime(elapsedTotal.TotalSeconds));
+                    });
                 }
                 else
                 {
@@ -866,16 +943,22 @@ public partial class MainWindow : Window
 
     void OnDragOver(object? sender, DragEventArgs e)
     {
-        if (e.Data.Contains(DataFormats.FileNames))
+        if (e.Data.Contains(DataFormats.Files))
             e.DragEffects = DragDropEffects.Copy;
     }
 
-    void OnDrop(object? sender, DragEventArgs e)
+    async void OnDrop(object? sender, DragEventArgs e)
     {
-        if (e.Data.Contains(DataFormats.FileNames))
+        if (e.Data.Contains(DataFormats.Files))
         {
             var files = e.Data.GetFileNames();
-            AddFilesToQueue(files);
+            if (files != null)
+            {
+                var supported = files
+                    .Where(f => _extensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                    .ToArray();
+                AddFilesToQueue(supported);
+            }
         }
     }
 
@@ -899,5 +982,17 @@ public partial class MainWindow : Window
                        replaced.Substring(firstDot + 1).Replace(".", "");
         }
         return replaced;
+    }
+
+    // Add this helper method to your MainWindow class (or a suitable static utility class)
+    private static T? FindAncestorOfType<T>(Control? control) where T : Control
+    {
+        while (control != null)
+        {
+            if (control is T t)
+                return t;
+            control = control.Parent as Control;
+        }
+        return null;
     }
 }
