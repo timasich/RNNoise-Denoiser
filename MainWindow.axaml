@@ -111,7 +111,8 @@
         <!-- Queue -->
       <DataGrid x:Name="dgQueue"
         AutoGenerateColumns="False"
-        dnd:DragDrop.AllowDrop="True">
+        dnd:DragDrop.AllowDrop="True"
+        SelectionMode="Single">
         <DataGrid.Columns>
           <DataGridCheckBoxColumn Binding="{Binding IsChecked}" Width="30"/>
           <DataGridTextColumn Header="File"     Binding="{Binding Input}"    Width="480" IsReadOnly="True"/>

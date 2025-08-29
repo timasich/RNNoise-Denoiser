@@ -10,9 +10,11 @@ public sealed class QueueItem : INotifyPropertyChanged
     string _input = string.Empty;
     string _output = string.Empty;
     string _status = string.Empty;
+    string _statusKey = string.Empty; // Invariant status id for localization
     string _progress = string.Empty;
     string _time = string.Empty;
     string _errorDetails = string.Empty;
+    int? _errorCode;
 
     public bool IsChecked
     {
@@ -38,6 +40,20 @@ public sealed class QueueItem : INotifyPropertyChanged
         set => SetField(ref _status, value);
     }
 
+    // Invariant status identifier (e.g. "Queued", "Preparing", "Processing...", "Done", "Cancelled", "Error")
+    public string StatusKey
+    {
+        get => _statusKey;
+        set
+        {
+            if (SetField(ref _statusKey, value))
+            {
+                // When key changes, update localized Status too
+                RelocalizeStatus();
+            }
+        }
+    }
+
     public string Progress
     {
         get => _progress;
@@ -56,6 +72,12 @@ public sealed class QueueItem : INotifyPropertyChanged
         set => SetField(ref _errorDetails, value);
     }
 
+    public int? ErrorCode
+    {
+        get => _errorCode;
+        set => SetField(ref _errorCode, value);
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     void OnPropertyChanged([CallerMemberName] string? name = null) =>
@@ -68,5 +90,17 @@ public sealed class QueueItem : INotifyPropertyChanged
         field = value;
         OnPropertyChanged(name);
         return true;
+    }
+
+    public void RelocalizeStatus()
+    {
+        if (string.IsNullOrWhiteSpace(_statusKey))
+            return;
+
+        // Translate common statuses via Localizer
+        var localized = Localizer.Tr(_statusKey);
+        if (_statusKey == "Error" && _errorCode.HasValue)
+            localized = $"{localized} ({_errorCode.Value})";
+        Status = localized;
     }
 }

@@ -8,6 +8,7 @@ using Avalonia.Platform.Storage;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -97,6 +98,10 @@ public partial class MainWindow : Window
             {
                 Localizer.Set(lang.Code);
                 ApplyLocalization();
+                // Relocalize dynamic statuses in the queue
+                foreach (var qi in _queue)
+                    qi.RelocalizeStatus()
+                ;
             }
         };
 
@@ -125,69 +130,60 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
 
-        miRemove.Click += MiRemove_Click;
-        miDuplicate.Click += MiDuplicate_Click;
-        miOpenOriginal.Click += MiOpenOriginal_Click;
-        miOpenOutput.Click += MiOpenOutput_Click;
-        miMark.Click += MiMark_Click;
-        miUnmark.Click += MiUnmark_Click;
-        miPreview.Click += MiPreview_Click;
+        // Click handlers for context menu items are wired in XAML via Click="..."
+        // Avoid subscribing here to prevent double invocation.
 
         tslMadeBy.PointerPressed += (_, __) => ShowReadme();
         Opened += (_, __) => { if (_settings.ShowReadme) ShowReadme(); };
 
-        dgQueue.PointerPressed += DgQueue_PointerPressed;
-    }
-
-    private void DgQueue_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.ClickCount != 2)
-            return;
-
-        var point = e.GetPosition(dgQueue);
-        var hit = dgQueue.InputHitTest(point);
-        if (hit is Control control) // Changed from IControl to Control
+        dgQueue.CellPointerPressed += DgQueue_CellPointerPressed;
+        
+        // Обработчик для установки выбранной строки при правом клике
+        dgQueue.PointerPressed += (sender, e) =>
         {
-            // Найти DataGridRow
-            var row = FindAncestorOfType<DataGridRow>(control);
-            if (row?.DataContext is not QueueItem item)
-                return;
-
-            // Найти DataGridCell
-            var cell = FindAncestorOfType<DataGridCell>(control);
-            if (cell == null)
-                return;
-
-            // Определить индекс колонки
-            var column = DataGridColumn.GetColumnContainingElement(cell);
-            int colIndex = column != null ? dgQueue.Columns.IndexOf(column) : -1;
-            if (colIndex == -1 && cell.Parent is Control parent)
+            if (e.GetCurrentPoint(dgQueue).Properties.IsRightButtonPressed)
             {
-                // Fallback: try to get the column index by traversing the visual tree
-                for (int i = 0; i < dgQueue.Columns.Count; i++)
+                var point = e.GetPosition(dgQueue);
+                var hit = dgQueue.InputHitTest(point);
+                if (hit is Control control)
                 {
-                    if (dgQueue.Columns[i].Header?.ToString() == cell.Name)
+                    var row = FindAncestorOfType<DataGridRow>(control);
+                    if (row?.DataContext is QueueItem item)
                     {
-                        colIndex = i;
-                        break;
+                        dgQueue.SelectedItem = item;
                     }
                 }
             }
+        };
+    }
 
-            if (colIndex == 1 && !string.IsNullOrEmpty(item.Input))
-            {
-                var dir = Path.GetDirectoryName(item.Input);
-                if (!string.IsNullOrEmpty(dir))
-                    Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
-            }
-            else if (colIndex == 5 && !string.IsNullOrEmpty(item.Output))
-            {
-                var dir = Path.GetDirectoryName(item.Output);
-                if (!string.IsNullOrEmpty(dir))
-                    Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
-            }
+    private void DgQueue_CellPointerPressed(object? sender, DataGridCellPointerPressedEventArgs e)
+    {
+        if (e.PointerPressedEventArgs.ClickCount != 2)
+            return;
+
+        if (e.Cell.DataContext is not QueueItem item)
+            return;
+
+        // Определяем колонку по её индексу
+        var column = e.Column;
+        int colIndex = column != null ? dgQueue.Columns.IndexOf(column) : -1;
+
+        if (colIndex == 1 && !string.IsNullOrEmpty(item.Input)) // File column
+        {
+            var dir = Path.GetDirectoryName(item.Input);
+            if (!string.IsNullOrEmpty(dir))
+                Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+        }
+        else if (colIndex == 5 && !string.IsNullOrEmpty(item.Output)) // Output column
+        {
+            var dir = Path.GetDirectoryName(item.Output);
+            if (!string.IsNullOrEmpty(dir))
+                Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
         }
     }
+
+
 
     async void BtnFfmpegBrowse_Click(object? sender, RoutedEventArgs e)
     {
@@ -391,7 +387,7 @@ public partial class MainWindow : Window
             if (!File.Exists(f)) continue;
             var output = Path.Combine(txtOutput.Text,
                 Path.GetFileNameWithoutExtension(f) + "_denoised" + Path.GetExtension(f));
-            _queue.Add(new QueueItem { Input = f, Output = output, IsChecked = true, Status = Localizer.Tr("Queued") });
+            _queue.Add(new QueueItem { Input = f, Output = output, IsChecked = true, StatusKey = "Queued" });
         }
     }
 
@@ -537,7 +533,7 @@ public partial class MainWindow : Window
         var ffplay = Path.Combine(txtFfmpeg.Text, OperatingSystem.IsWindows() ? "ffplay.exe" : "ffplay");
         if (!File.Exists(ffplay))
         {
-            tslStatus.Text = "ffplay not found";
+            tslStatus.Text = Localizer.Tr("ffplay not found");
             return Task.CompletedTask;
         }
 
@@ -584,15 +580,15 @@ public partial class MainWindow : Window
         {
             if (_cts.IsCancellationRequested)
             {
-                item.Status = Localizer.Tr("Cancelled");
+                item.StatusKey = "Cancelled";
                 break;
             }
 
-            item.Status = Localizer.Tr("Preparing");
+            item.StatusKey = "Preparing";
             var duration = await GetDurationAsync(ffprobe, item.Input);
             item.Progress = "0%";
             item.Time = FormatTime(0);
-            item.Status = Localizer.Tr("Processing...");
+            item.StatusKey = "Processing...";
             Directory.CreateDirectory(Path.GetDirectoryName(item.Output)!);
 
             var args = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => BuildFfmpegArgs(item.Input, item.Output));
@@ -620,9 +616,9 @@ public partial class MainWindow : Window
 
                 if (proc == null)
                 {
-                    item.Status = "Error";
-                    item.ErrorDetails = "Failed to start FFmpeg process.";
-                    tslStatus.Text = "Failed to start FFmpeg.";
+                    item.StatusKey = "Error";
+                    item.ErrorDetails = Localizer.Tr("Failed to start FFmpeg process.");
+                    tslStatus.Text = Localizer.Tr("Failed to start FFmpeg.");
                     break;
                 }
 
@@ -681,7 +677,7 @@ public partial class MainWindow : Window
 
                 if (proc.ExitCode == 0)
                 {
-                    item.Status = Localizer.Tr("Done");
+                    item.StatusKey = "Done";
                     item.Progress = "100%";
                     item.Time = FormatTime(elapsedTotal.TotalSeconds); // потрачено
                     item.IsChecked = false;
@@ -696,7 +692,8 @@ public partial class MainWindow : Window
                     var tail = LastLines(log, 12);
                     var hint = DiagnoseFfmpegError(log, proc.ExitCode, item.Input);
 
-                    item.Status = $"Error ({proc.ExitCode})";
+                    item.StatusKey = "Error";
+                    item.ErrorCode = proc.ExitCode;
                     item.ErrorDetails = string.IsNullOrWhiteSpace(hint)
                         ? tail
                         : (hint + Environment.NewLine + Environment.NewLine + tail);
@@ -707,12 +704,12 @@ public partial class MainWindow : Window
             }
             catch (OperationCanceledException)
             {
-                item.Status = Localizer.Tr("Cancelled");
+                item.StatusKey = "Cancelled";
                 break;
             }
             catch (Exception ex)
             {
-                item.Status = "Error";
+                item.StatusKey = "Error";
                 item.ErrorDetails = ex.ToString();
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => tslStatus.Text = ex.Message);
                 break;
@@ -862,7 +859,7 @@ public partial class MainWindow : Window
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
         var tb = new TextBox { Margin = new Thickness(10) };
-        var ok = new Button { Content = "OK", IsDefault = true };
+        var ok = new Button { Content = Localizer.Tr("OK"), IsDefault = true };
         var cancel = new Button { Content = Localizer.Tr("Cancel"), IsCancel = true };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(10, 0) };
         buttons.Children.Add(ok);
@@ -879,66 +876,155 @@ public partial class MainWindow : Window
         return await tcs.Task;
     }
 
+    private bool _isProcessingContextMenu = false;
+
     void MiRemove_Click(object? sender, RoutedEventArgs e)
     {
-        if ((sender as MenuItem)?.DataContext is QueueItem item)
-            _queue.Remove(item);
+        if (_isProcessingContextMenu) return;
+        _isProcessingContextMenu = true;
+        
+        try
+        {
+            var item = GetQueueItemFromContext(sender);
+            if (item != null)
+                _queue.Remove(item);
+        }
+        finally
+        {
+            _isProcessingContextMenu = false;
+        }
     }
 
     void MiDuplicate_Click(object? sender, RoutedEventArgs e)
     {
-        if ((sender as MenuItem)?.DataContext is QueueItem item)
+        if (_isProcessingContextMenu) return;
+        _isProcessingContextMenu = true;
+        
+        try
         {
-            var clone = new QueueItem
+            var item = GetQueueItemFromContext(sender);
+            if (item != null)
             {
-                Input = item.Input,
-                Output = item.Output,
-                IsChecked = item.IsChecked,
-                Status = item.Status,
-                Progress = item.Progress,
-                Time = item.Time
-            };
-            var index = _queue.IndexOf(item);
-            _queue.Insert(index + 1, clone);
+                var clone = new QueueItem
+                {
+                    Input = item.Input,
+                    Output = item.Output,
+                    IsChecked = item.IsChecked,
+                    Status = item.Status,
+                    Progress = item.Progress,
+                    Time = item.Time
+                };
+                var index = _queue.IndexOf(item);
+                _queue.Insert(index + 1, clone);
+            }
+        }
+        finally
+        {
+            _isProcessingContextMenu = false;
         }
     }
 
     void MiOpenOriginal_Click(object? sender, RoutedEventArgs e)
     {
-        if ((sender as MenuItem)?.DataContext is QueueItem item)
+        if (_isProcessingContextMenu) return;
+        _isProcessingContextMenu = true;
+        
+        try
         {
-            var dir = Path.GetDirectoryName(item.Input);
-            if (!string.IsNullOrEmpty(dir))
-                Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+            var item = GetQueueItemFromContext(sender);
+            if (item != null && !string.IsNullOrEmpty(item.Input))
+            {
+                var dir = Path.GetDirectoryName(item.Input);
+                if (!string.IsNullOrEmpty(dir))
+                    Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+            }
+        }
+        finally
+        {
+            _isProcessingContextMenu = false;
         }
     }
 
     void MiOpenOutput_Click(object? sender, RoutedEventArgs e)
     {
-        if ((sender as MenuItem)?.DataContext is QueueItem item)
+        if (_isProcessingContextMenu) return;
+        _isProcessingContextMenu = true;
+        
+        try
         {
-            var dir = Path.GetDirectoryName(item.Output);
-            if (!string.IsNullOrEmpty(dir))
-                Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+            var item = GetQueueItemFromContext(sender);
+            if (item != null && !string.IsNullOrEmpty(item.Output))
+            {
+                var dir = Path.GetDirectoryName(item.Output);
+                if (!string.IsNullOrEmpty(dir))
+                    Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+            }
+        }
+        finally
+        {
+            _isProcessingContextMenu = false;
         }
     }
 
     void MiMark_Click(object? sender, RoutedEventArgs e)
     {
-        if ((sender as MenuItem)?.DataContext is QueueItem item)
-            item.IsChecked = true;
+        if (_isProcessingContextMenu) return;
+        _isProcessingContextMenu = true;
+        
+        try
+        {
+            var item = GetQueueItemFromContext(sender);
+            if (item != null)
+                item.IsChecked = true;
+        }
+        finally
+        {
+            _isProcessingContextMenu = false;
+        }
     }
 
     void MiUnmark_Click(object? sender, RoutedEventArgs e)
     {
-        if ((sender as MenuItem)?.DataContext is QueueItem item)
-            item.IsChecked = false;
+        if (_isProcessingContextMenu) return;
+        _isProcessingContextMenu = true;
+        
+        try
+        {
+            var item = GetQueueItemFromContext(sender);
+            if (item != null)
+                item.IsChecked = false;
+        }
+        finally
+        {
+            _isProcessingContextMenu = false;
+        }
     }
 
     async void MiPreview_Click(object? sender, RoutedEventArgs e)
     {
-        if ((sender as MenuItem)?.DataContext is QueueItem item)
-            await PreviewItem(item);
+        if (_isProcessingContextMenu) return;
+        _isProcessingContextMenu = true;
+        
+        try
+        {
+            var item = GetQueueItemFromContext(sender);
+            if (item != null)
+                await PreviewItem(item);
+        }
+        finally
+        {
+            _isProcessingContextMenu = false;
+        }
+    }
+
+    // Вспомогательный метод для получения QueueItem из контекста
+    private QueueItem? GetQueueItemFromContext(object? sender)
+    {
+        // Получаем выбранный элемент из DataGrid
+        if (dgQueue.SelectedItem is QueueItem selectedItem)
+            return selectedItem;
+
+        return null;
     }
 
     void OnDragOver(object? sender, DragEventArgs e)
